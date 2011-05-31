@@ -5,10 +5,12 @@
 #include <QFileDialog>
 #include <QDesktopWidget>
 #include <QDebug>
+
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv); Tracker window; window.show(); return app.exec();
 }
-Tracker::Tracker() : klt(0), current(-1) {
+
+Tracker::Tracker() : current(-1), klt(0) {
     setWindowTitle("Qt Tracker");
     QToolBar* toolBar = addToolBar("Main Toolbar"); toolBar->setObjectName("mainToolbar");
     toolBar->addAction(QIcon::fromTheme("document-open"),"Open...",this,SLOT(open()));
@@ -42,14 +44,16 @@ void Tracker::open(QStringList paths) {
     slider.setMaximum(images.count()-1);
     first();
     std::vector<std::string> files; foreach(QString image,images) files.push_back(image.toStdString());
-    //klt=new KLT(files);
+    //klt=KLT::Load(files);
 }
 
 void Tracker::seek(int frame) {
-    if(frame<0 || frame==current || frame>=images.count()) { qDebug()<<frame<<current; stop(); return; }
+    if(frame==current) return;
+    if(frame<0 || frame>=images.count()) { stop(); return; }
     view.setPixmap(QPixmap(images[current=frame]));
     slider.setValue(frame); frameNumber.setValue(frame);
 }
+
 void Tracker::first() { seek(0); }
 void Tracker::previous() { seek(current-1); }
 void Tracker::next() { seek(current+1); }
