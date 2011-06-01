@@ -22,7 +22,7 @@
 #define LIBMV_CORRESPONDENCE_KLT_H_
 
 #include <cassert>
-#include <list>
+#include <vector>
 
 #include "libmv/correspondence/feature.h"
 #include "libmv/image/image.h"
@@ -42,7 +42,7 @@ struct KLTPointFeature : public PointFeature {
 
 class KLTContext {
  public:
-  typedef std::list<KLTPointFeature *> FeatureList;
+  typedef std::vector<KLTPointFeature> FeatureList;
 
   KLTContext()
       : half_window_size_(3),
@@ -54,31 +54,27 @@ class KLTContext {
   }
 
   void DetectGoodFeatures(const Array3Df &image_and_gradients,
-                          FeatureList *features);
+                          FeatureList &features);
 
   bool TrackFeature(ImagePyramid *pyramid1,
                     const KLTPointFeature &feature1,
                     ImagePyramid *pyramid2,
-                    KLTPointFeature *feature2_pointer);
+                    KLTPointFeature &feature2);
 
   void TrackFeatures(ImagePyramid *pyramid1,
                      const FeatureList &features1,
                      ImagePyramid *pyramid2,
-                     FeatureList *features2_pointer);
+                     FeatureList &features2);
 
   bool TrackFeatureOneLevel(const FloatImage &image_and_gradient1,
                             const Vec2 &position1,
                             const FloatImage &image_and_gradient2,
                             Vec2 *position2_pointer);
 
-
-  void DrawFeatureList(const FeatureList &features,
-                       const Vec3 &color,
-                       FloatImage *image) const;
   int HalfWindowSize() { return half_window_size_; }
   int WindowSize() { return 2 * HalfWindowSize() + 1; }
 
- private:
+ //private:
   int half_window_size_;
   int max_iterations_;
   double min_trackness_;
@@ -86,10 +82,6 @@ class KLTContext {
   double min_determinant_;
   double min_update_distance2_;
 };
-
-void DrawFeature(const PointFeature &feature,
-                 const Vec3 &color,
-                 FloatImage *image);
 
 }  // namespace libmv
 

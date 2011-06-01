@@ -6,14 +6,17 @@
 #include "libmv/image/image_pyramid.h"
 #include "ui/tracker/klt.h"
 
+#define foreach(t,c) for ( t::iterator it = c.begin() ; it != c.end() ; ++it )
+
 namespace libmv {
 
 class ConcreteKLT : public KLT {
  public:
-  typedef KLTContext::FeatureList FeatureList;
 
   ConcreteKLT(int pyramid_levels, float sigma)
-    : pyramid_levels_(pyramid_levels), sigma_(sigma) {}
+    : pyramid_levels_(pyramid_levels), sigma_(sigma) {
+    klt_.min_trackness_=0.5;
+  }
 
   ImagePyramid* MakeImagePyramid(const ubyte* data, int width, int height) {
     Array3Df image(width, height);
@@ -25,34 +28,28 @@ class ConcreteKLT : public KLT {
     return libmv::MakeImagePyramid(image, pyramid_levels_, sigma_);
   }
 
-  void Detect(ImagePyramid* first) {
-    klt_.DetectGoodFeatures(first->Level(0), &features_);
-    int i = 0;
-    for (FeatureList::iterator it = features_.begin();
-         it != features_.end(); ++it, ++i) {
-      matches_.Insert(0, i, *it);
-    }
+  Features Detect(ImagePyramid* first) {
+    features_.resize(1);
+    klt_.DetectGoodFeatures(first->Level(0), features_[0]);
+    return features_[0];
   }
 
-  void Track(int i, ImagePyramid* previous, ImagePyramid* next) {
-    for (Matches::Features<KLTPointFeature> r =
-         matches_.InImage<KLTPointFeature>(i-1); r; ++r) {
-      // FIXME: allocating many small structures
-      KLTPointFeature *next_position = new KLTPointFeature;
-      if (klt_.TrackFeature(previous, *r.feature(), next, next_position)) {
-        matches_.Insert(i, r.track(), next_position);
-      } else {
-        delete next_position;  // interface should be fixed to avoid this
+  Features Track(int i, ImagePyramid* previous, ImagePyramid* next) {
+    features_.resize(i);
+    foreach (Features, features_[i-1] ) {
+      KLTPointFeature next_position;
+      if (klt_.TrackFeature(previous, *it, next, next_position)) {
+        features_[i].push_back(next_position);
       }
     }
+    return features_[i];
   }
 
  private:
   int pyramid_levels_;
   int sigma_;
   KLTContext klt_;
-  FeatureList features_;
-  Matches matches_;
+  std::vector<Features> features_;
 };
 
 KLT* KLT::CreateContext(int pyramid_levels, float sigma) {

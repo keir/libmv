@@ -35,7 +35,7 @@ namespace libmv {
 
 static void FindLocalMaxima(const FloatImage &trackness,
                             float min_trackness,
-                            KLTContext::FeatureList *features) {
+                            KLTContext::FeatureList &features) {
   for (int i = 1; i < trackness.Height()-1; ++i) {
     for (int j = 1; j < trackness.Width()-1; ++j) {
       if (   trackness(i,j) >= min_trackness
@@ -47,11 +47,11 @@ static void FindLocalMaxima(const FloatImage &trackness,
           && trackness(i,j) >= trackness(i+1, j-1)
           && trackness(i,j) >= trackness(i+1, j  )
           && trackness(i,j) >= trackness(i+1, j+1)) {
-        KLTPointFeature *p = new KLTPointFeature;
-        p->coords(1) = i;
-        p->coords(0) = j;
-        p->trackness = trackness(i,j);
-        features->push_back(p);
+        KLTPointFeature p;
+        p.coords(1) = i;
+        p.coords(0) = j;
+        p.trackness = trackness(i,j);
+        features.push_back(p);
       }
     }
   }
@@ -119,27 +119,23 @@ static double dist2(const Vec2f &x, const Vec2f &y) {
 
 // TODO(keir): Use Stan's neat trick of using a 'punch-out' array to detect
 // too-closes features. This is O(n^2)!
-static void RemoveTooCloseFeatures(KLTContext::FeatureList *features,
+static void RemoveTooCloseFeatures(KLTContext::FeatureList &features,
                                    double mindist2) {
 
-  KLTContext::FeatureList::iterator i = features->begin();
-  while (i != features->end()) {
+  KLTContext::FeatureList::iterator i = features.begin();
+  while (i != features.end()) {
     bool i_deleted = false;
     KLTContext::FeatureList::iterator j = i;
     ++j;
-    while (j != features->end() && !i_deleted) {
-      if (dist2((*i)->coords, (*j)->coords) < mindist2) {
-        KLTContext::FeatureList::iterator to_delete;
-        if ((*i)->trackness < (*j)->trackness) {
-          to_delete = i;
+    while (j != features.end() && !i_deleted) {
+      if (dist2((*i).coords, (*j).coords) < mindist2) {
+        if ((*i).trackness < (*j).trackness) {
+          features.erase(i);
           ++i;
-          i_deleted = true;
         } else {
-          to_delete = j;
+          features.erase(j);
           ++j;
         }
-        delete *to_delete;
-        features->erase(to_delete);
       } else {
         ++j;
       }
@@ -151,7 +147,7 @@ static void RemoveTooCloseFeatures(KLTContext::FeatureList *features,
 }
 
 void KLTContext::DetectGoodFeatures(const Array3Df &image_and_gradients,
-                                    FeatureList *features) {
+                                    FeatureList &features) {
   Array3Df gradient_matrix;
   ComputeGradientMatrix(image_and_gradients, WindowSize(), &gradient_matrix);
 
@@ -168,14 +164,12 @@ void KLTContext::DetectGoodFeatures(const Array3Df &image_and_gradients,
 void KLTContext::TrackFeatures(ImagePyramid *pyramid1,
                                const FeatureList &features1,
                                ImagePyramid *pyramid2,
-                               FeatureList *features2_pointer) {
-  FeatureList &features2 = *features2_pointer;
-
+                               FeatureList &features2) {
   features2.clear();
   for (FeatureList::const_iterator i = features1.begin();
        i != features1.end(); ++i) {
-    KLTPointFeature *tracked_feature = new KLTPointFeature;
-    TrackFeature(pyramid1, **i, pyramid2, tracked_feature);
+    KLTPointFeature tracked_feature;
+    TrackFeature(pyramid1, *i, pyramid2, tracked_feature);
     features2.push_back(tracked_feature);
   }
 }
@@ -183,7 +177,7 @@ void KLTContext::TrackFeatures(ImagePyramid *pyramid1,
 bool KLTContext::TrackFeature(ImagePyramid *pyramid1,
                               const KLTPointFeature &feature1,
                               ImagePyramid *pyramid2,
-                              KLTPointFeature *feature2_pointer) {
+                              KLTPointFeature &feature2) {
   Vec2 position1, position2;
   position2(0) = feature1.coords(0);
   position2(1) = feature1.coords(1);
@@ -205,7 +199,7 @@ bool KLTContext::TrackFeature(ImagePyramid *pyramid1,
       return false;
     }
   }
-  feature2_pointer->coords = position2.cast<float>();
+  feature2.coords = position2.cast<float>();
   return true;
 }
 
@@ -305,47 +299,6 @@ bool KLTContext::TrackFeatureOneLevel(const Array3Df &image_and_gradient1,
     // TODO(keir): Somehow indicate that we hit max iterations.
   }
   return true;
-}
-
-
-void KLTContext::DrawFeatureList(const FeatureList &features,
-                                 const Vec3 &color,
-                                 FloatImage *image) const {
-  for (FeatureList::const_iterator i = features.begin();
-       i != features.end(); ++i) {
-    DrawFeature(**i, color, image);
-  }
-}
-
-// TODO(keir): Replace this with Cairo.
-void DrawFeature(const PointFeature &feature,
-                 const Vec3 &color,
-                 FloatImage *image) {
-  assert(image->Depth() == 3);
-
-  const Vec2f &point = feature.coords;
-
-  const int cross_width = 5;
-  int x = lround(point(0));
-  int y = lround(point(1));
-  if (!image->Contains(y,x)) {
-    return;
-  }
-
-  // Draw vertical line.
-  for (int i = max(0, y - cross_width);
-       i < min(image->Height(), y + cross_width + 1); ++i) {
-    for (int k = 0; k < 3; ++k) {
-      (*image)(i, x, k) = color(k);
-    }
-  }
-  // Draw horizontal line.
-  for (int j = max(0, x - cross_width);
-       j < min(image->Width(), x + cross_width + 1); ++j) {
-    for (int k = 0; k < 3; ++k) {
-      (*image)(y, j, k) = color(k);
-    }
-  }
 }
 
 }  // namespace libmv

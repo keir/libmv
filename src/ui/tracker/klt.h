@@ -2,13 +2,21 @@
 #ifndef SRC_UI_TRACKER_KLT_H_
 #define SRC_UI_TRACKER_KLT_H_
 #include <vector>
-#include <string>
-
 typedef unsigned char ubyte;
 
 namespace libmv {
 
 class ImagePyramid;
+
+#ifndef LIBMV_CORRESPONDENCE_KLT_H_
+struct KLTPointFeature {
+  virtual ~KLTPointFeature() {}
+  float x,y,scale,orientation;
+  int half_window_size;
+  float trackness;
+};
+#endif
+typedef std::vector<KLTPointFeature> Features;
 
 class KLT {
  public:
@@ -16,9 +24,9 @@ class KLT {
   virtual ~KLT() {}
   virtual ImagePyramid* MakeImagePyramid(
     const ubyte* data, int width, int height) = 0;
-  virtual void Detect(ImagePyramid* first) = 0;
-  virtual void Track(int frame, ImagePyramid* previous, ImagePyramid* next) = 0;
-  // TODO(MatthiasF): return std::vector<Feature>;
+  virtual Features Detect(ImagePyramid* first) = 0;
+  virtual Features Track(int frame, ImagePyramid* previous,
+                            ImagePyramid* next) = 0;
 };
 }
 
