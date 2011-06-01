@@ -1,3 +1,4 @@
+// Copyright 2011 libmv authors
 #pragma once
 #include <QApplication>
 #include <QMainWindow>
@@ -7,7 +8,10 @@
 #include <QSlider>
 #include <QLabel>
 #include <QTimer>
+namespace libmv {
 class KLT;
+class ImagePyramid;
+}
 
 class Tracker : public QMainWindow {
     Q_OBJECT
@@ -33,5 +37,7 @@ private:
     QTimer playTimer;
     QList<QString> images;
     int current;
-    KLT* klt;
+
+    libmv::KLT* klt;
+    QVector<libmv::ImagePyramid*> pyramids;
 };

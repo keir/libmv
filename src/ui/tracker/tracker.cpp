@@ -1,4 +1,4 @@
-// Copyright (c) 2011 libmv authors.
+// Copyright 2011 libmv authors
 // Initial revision by Matthias Fauconneau.
 #include "tracker.h"
 #include "klt.h"
@@ -10,7 +10,7 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv); Tracker window; window.show(); return app.exec();
 }
 
-Tracker::Tracker() : current(-1), klt(0) {
+Tracker::Tracker() : current(-2), klt(libmv::KLT::CreateContext()) {
     setWindowTitle("Qt Tracker");
     QToolBar* toolBar = addToolBar("Main Toolbar"); toolBar->setObjectName("mainToolbar");
     toolBar->addAction(QIcon::fromTheme("document-open"),"Open...",this,SLOT(open()));
@@ -35,23 +35,27 @@ Tracker::Tracker() : current(-1), klt(0) {
 void Tracker::open() { open(QFileDialog::getOpenFileNames(this, tr("Select Images"),"","Images (*.png *.jpg);;All Files (*.*)")); }
 void Tracker::open(QStringList paths) {
     if(paths.isEmpty()) return;
-    images.clear();
+    images.clear(); pyramids.clear();
     foreach(QString path,paths) {
         if(QFileInfo(path).isFile()) images << path;
         else foreach(QString file,QDir(path).entryList(QStringList("*.jpg")<<"*.png",QDir::Files,QDir::Name)) images << QDir(path).filePath(file);
     }
     frameNumber.setMaximum(images.count()-1);
     slider.setMaximum(images.count()-1);
+    pyramids.resize(images.count());
     first();
-    std::vector<std::string> files; foreach(QString image,images) files.push_back(image.toStdString());
-    //klt=KLT::Load(files);
 }
 
 void Tracker::seek(int frame) {
     if(frame==current) return;
     if(frame<0 || frame>=images.count()) { stop(); return; }
-    view.setPixmap(QPixmap(images[current=frame]));
     slider.setValue(frame); frameNumber.setValue(frame);
+    QImage image(images[frame]);
+    view.setPixmap(QPixmap::fromImage(image));
+    if(!pyramids[frame]) pyramids[frame] = klt->MakeImagePyramid(image.constBits(),image.width(),image.height());
+    if(frame==current+1) klt->Track(frame,pyramids[frame-1],pyramids[frame]);
+    else klt->Detect(pyramids[frame]);
+    current=frame;
 }
 
 void Tracker::first() { seek(0); }
