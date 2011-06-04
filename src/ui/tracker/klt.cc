@@ -17,8 +17,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
-#include <list>
-#include "libmv/correspondence/matches.h"
 #include "libmv/correspondence/feature.h"
 #include "libmv/correspondence/klt.h"
 #include "libmv/image/image_pyramid.h"
@@ -31,13 +29,14 @@ class ConcreteKLT : public KLT {
 
   ConcreteKLT(int pyramid_levels, float sigma)
     : pyramid_levels_(pyramid_levels), sigma_(sigma) {
-    klt_.min_trackness_=0.5;
+    klt_.min_trackness_=0.9;
   }
 
   ImagePyramid* MakeImagePyramid(const ubyte* data, int width, int height) {
-    Array3Df image(width, height);
+    Array3Df image(height, width);
     for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
-      image(x, y, 0) = (0.2126*data[(y*width+x)*4+2]+
+      // shall we reverse gamma too ?
+      image(y, x, 0) = (0.2126*data[(y*width+x)*4+2]+
                         0.7152*data[(y*width+x)*4+1]+
                         0.0722*data[(y*width+x)*4+0]) / 255;
     }
@@ -45,28 +44,25 @@ class ConcreteKLT : public KLT {
   }
 
   Features Detect(ImagePyramid* first) {
-    features_.resize(1);
-    klt_.DetectGoodFeatures(first->Level(0), &features_[0]);
-    return features_[0];
+    klt_.DetectGoodFeatures(first->Level(0), &features_);
+    return features_;
   }
 
-  Features Track(int frame, ImagePyramid* previous, ImagePyramid* next) {
-    features_.resize(frame);
-    for(size_t i = 0 ; i < features_[frame-1].size() ; i++ ) {
-      const KLTPointFeature& position = features_[frame-1][i];
-      KLTPointFeature next_position;
-      if (klt_.TrackFeature(previous, position, next, &next_position)) {
-        features_[frame].push_back(next_position);
-      }
+  Features Track(ImagePyramid* previous, ImagePyramid* next) {
+    for(size_t i = 0 ; i < features_.size() ; i++ ) {
+      KLTPointFeature& feature = features_[i];
+      if(feature.trackness==0) continue;
+      if (!klt_.TrackFeature(previous, feature, next, &feature))
+        feature.trackness = 0;
     }
-    return features_[frame];
+    return features_;
   }
 
  private:
   int pyramid_levels_;
-  int sigma_;
+  float sigma_;
   KLTContext klt_;
-  std::vector<Features> features_;
+  Features features_;
 };
 
 KLT* KLT::CreateContext(int pyramid_levels, float sigma) {

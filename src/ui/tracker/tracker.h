@@ -7,12 +7,10 @@
 #include <QSpinBox>
 #include <QAction>
 #include <QSlider>
-#include <QLabel>
+#include <QGraphicsView>
 #include <QTimer>
-namespace libmv {
-class KLT;
-class ImagePyramid;
-}
+#include <QCache>
+#include "klt.h"
 
 class Tracker : public QMainWindow {
     Q_OBJECT
@@ -28,18 +26,23 @@ public slots:
     void togglePlay(bool);
     void start();
     void stop();
+protected:
+    void resizeEvent(QResizeEvent *);
 private:
     void open(QStringList);
 
     QSpinBox frameNumber;
     QAction* playAction;
     QSlider slider;
-    QLabel view;
+    QGraphicsView view;
+    QGraphicsScene scene;
+    QGraphicsPixmapItem* pixmap;
+    QVector<QGraphicsPathItem*> tracks;
     QTimer playTimer;
     QList<QString> images;
     int current;
 
     libmv::KLT* klt;
-    QVector<libmv::ImagePyramid*> pyramids;
+    QCache<int,libmv::ImagePyramid> pyramids;
 };
 #endif

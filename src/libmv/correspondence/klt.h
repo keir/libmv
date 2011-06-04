@@ -47,10 +47,10 @@ class KLTContext {
   KLTContext()
       : half_window_size_(3),
         max_iterations_(10),
-        min_trackness_(0.1),
+        min_trackness_(0.5),
         min_feature_distance_(10),
         min_determinant_(1e-6),
-        min_update_distance2_(1e-6) {
+        min_update_squared_distance_(1e-6) {
   }
 
   void DetectGoodFeatures(const Array3Df &image_and_gradients,
@@ -81,7 +81,7 @@ class KLTContext {
   double min_trackness_;
   double min_feature_distance_;
   double min_determinant_;
-  double min_update_distance2_;
+  double min_update_squared_distance_;
 };
 
 }  // namespace libmv
