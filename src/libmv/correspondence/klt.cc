@@ -35,7 +35,7 @@ namespace libmv {
 
 static void FindLocalMaxima(const FloatImage &trackness,
                             float min_trackness,
-                            KLTContext::FeatureList &features) {
+                            KLTContext::FeatureList *features) {
   for (int i = 1; i < trackness.Height()-1; ++i) {
     for (int j = 1; j < trackness.Width()-1; ++j) {
       if (   trackness(i,j) >= min_trackness
@@ -51,7 +51,7 @@ static void FindLocalMaxima(const FloatImage &trackness,
         p.coords(1) = i;
         p.coords(0) = j;
         p.trackness = trackness(i,j);
-        features.push_back(p);
+        features->push_back(p);
       }
     }
   }
@@ -111,43 +111,32 @@ static void ComputeTrackness(const Array3Df gradient_matrix,
   *trackness_mean /= trackness.Size();
 }
 
-static double dist2(const Vec2f &x, const Vec2f &y) {
-  double a = x(0) - y(0);
-  double b = x(1) - y(1);
-  return a * a + b * b;
-}
-
 // TODO(keir): Use Stan's neat trick of using a 'punch-out' array to detect
 // too-closes features. This is O(n^2)!
-static void RemoveTooCloseFeatures(KLTContext::FeatureList &features,
-                                   double mindist2) {
-
-  KLTContext::FeatureList::iterator i = features.begin();
-  while (i != features.end()) {
-    bool i_deleted = false;
-    KLTContext::FeatureList::iterator j = i;
-    ++j;
-    while (j != features.end() && !i_deleted) {
-      if (dist2((*i).coords, (*j).coords) < mindist2) {
-        if ((*i).trackness < (*j).trackness) {
-          features.erase(i);
-          ++i;
-        } else {
-          features.erase(j);
-          ++j;
-        }
-      } else {
-        ++j;
+static void RemoveTooCloseFeatures(KLTContext::FeatureList *features,
+                                   double squared_min_distance) {
+  // mark close features with least trackness as invalid
+  for(size_t i = 0 ; i < features->size() ; ++i) {
+    KLTPointFeature& a = features->at(i);
+    for(size_t j = 0 ; j < i ; j++) {  // compare each feature pair once
+      KLTPointFeature& b = features->at(j);
+      if ( b.trackness != 0  // skip invalidated features
+           && (a.coords-b.coords).squaredNorm() < squared_min_distance ) {
+        ((a.trackness < b.trackness) ? a : b).trackness=0;  // invalid feature
       }
     }
-    if (!i_deleted) {
-      ++i;
-    }
   }
+  // compress feature array in place by removing invalid features
+  size_t size = 0;
+  for(size_t i = 0 ; i < features->size() ; ++i) {
+    const KLTPointFeature& a = features->at(i);
+    if( a.trackness != 0 ) features->at(size++) = a;
+  }
+  features->resize(size);
 }
 
 void KLTContext::DetectGoodFeatures(const Array3Df &image_and_gradients,
-                                    FeatureList &features) {
+                                    FeatureList *features) {
   Array3Df gradient_matrix;
   ComputeGradientMatrix(image_and_gradients, WindowSize(), &gradient_matrix);
 
@@ -158,26 +147,25 @@ void KLTContext::DetectGoodFeatures(const Array3Df &image_and_gradients,
 
   FindLocalMaxima(trackness, min_trackness_, features);
 
-  RemoveTooCloseFeatures(features, min_feature_dist_ * min_feature_dist_);
+  RemoveTooCloseFeatures(features, min_feature_distance_ * min_feature_distance_);
 }
 
 void KLTContext::TrackFeatures(ImagePyramid *pyramid1,
                                const FeatureList &features1,
                                ImagePyramid *pyramid2,
-                               FeatureList &features2) {
-  features2.clear();
-  for (FeatureList::const_iterator i = features1.begin();
-       i != features1.end(); ++i) {
+                               FeatureList *features2) {
+  features2->clear();
+  for (size_t i = 0; i < features1.size(); ++i) {
     KLTPointFeature tracked_feature;
-    TrackFeature(pyramid1, *i, pyramid2, tracked_feature);
-    features2.push_back(tracked_feature);
+    TrackFeature(pyramid1, features1.at(i), pyramid2, &tracked_feature);
+    features2->push_back(tracked_feature);
   }
 }
 
 bool KLTContext::TrackFeature(ImagePyramid *pyramid1,
                               const KLTPointFeature &feature1,
                               ImagePyramid *pyramid2,
-                              KLTPointFeature &feature2) {
+                              KLTPointFeature *feature2) {
   Vec2 position1, position2;
   position2(0) = feature1.coords(0);
   position2(1) = feature1.coords(1);
@@ -199,7 +187,7 @@ bool KLTContext::TrackFeature(ImagePyramid *pyramid1,
       return false;
     }
   }
-  feature2.coords = position2.cast<float>();
+  feature2->coords = position2.cast<float>();
   return true;
 }
 
@@ -264,9 +252,7 @@ static bool SolveTrackingEquation(float gxx, float gxy, float gyy,
 bool KLTContext::TrackFeatureOneLevel(const Array3Df &image_and_gradient1,
                                       const Vec2 &position1,
                                       const Array3Df &image_and_gradient2,
-                                      Vec2 *position2_pointer) {
-  Vec2 &position2 = *position2_pointer;
-
+                                      Vec2 *position2) {
   int i;
   float dx=0, dy=0;
   max_iterations_ = 10;
@@ -274,7 +260,7 @@ bool KLTContext::TrackFeatureOneLevel(const Array3Df &image_and_gradient1,
     // Compute gradient matrix and error vector.
     float gxx, gxy, gyy, ex, ey;
     ComputeTrackingEquation(image_and_gradient1, image_and_gradient2,
-                            position1, position2,
+                            position1, *position2,
                             HalfWindowSize(),
                             &gxx, &gxy, &gyy, &ex, &ey);
     // Solve the linear system for deltad.
@@ -284,8 +270,8 @@ bool KLTContext::TrackFeatureOneLevel(const Array3Df &image_and_gradient1,
     }
 
     // Update feature2 position.
-    position2(0) += dx;
-    position2(1) += dy;
+    (*position2)(0) += dx;
+    (*position2)(1) += dy;
 
     // TODO(keir): Handle other tracking failure conditions and pass the
     // reasons out to the caller. For example, for pyramid tracking a failure

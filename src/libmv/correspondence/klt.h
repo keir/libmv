@@ -48,37 +48,38 @@ class KLTContext {
       : half_window_size_(3),
         max_iterations_(10),
         min_trackness_(0.1),
-        min_feature_dist_(10),
+        min_feature_distance_(10),
         min_determinant_(1e-6),
         min_update_distance2_(1e-6) {
   }
 
   void DetectGoodFeatures(const Array3Df &image_and_gradients,
-                          FeatureList &features);
+                          FeatureList *features);
 
   bool TrackFeature(ImagePyramid *pyramid1,
                     const KLTPointFeature &feature1,
                     ImagePyramid *pyramid2,
-                    KLTPointFeature &feature2);
+                    KLTPointFeature *feature2);
 
   void TrackFeatures(ImagePyramid *pyramid1,
                      const FeatureList &features1,
                      ImagePyramid *pyramid2,
-                     FeatureList &features2);
+                     FeatureList *features2);
 
   bool TrackFeatureOneLevel(const FloatImage &image_and_gradient1,
                             const Vec2 &position1,
                             const FloatImage &image_and_gradient2,
-                            Vec2 *position2_pointer);
+                            Vec2 *position2);
 
   int HalfWindowSize() { return half_window_size_; }
   int WindowSize() { return 2 * HalfWindowSize() + 1; }
 
+ //TODO(MatthiasF): create accessor/mutator boilerplate when we are done prototyping
  //private:
   int half_window_size_;
   int max_iterations_;
   double min_trackness_;
-  double min_feature_dist_;
+  double min_feature_distance_;
   double min_determinant_;
   double min_update_distance2_;
 };

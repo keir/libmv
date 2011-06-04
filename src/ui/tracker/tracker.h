@@ -1,5 +1,6 @@
 // Copyright 2011 libmv authors
-#pragma once
+#ifndef SRC_UI_TRACKER_TRACKER_H_
+#define SRC_UI_TRACKER_TRACKER_H_
 #include <QApplication>
 #include <QMainWindow>
 #include <QToolBar>
@@ -41,3 +42,4 @@ private:
     libmv::KLT* klt;
     QVector<libmv::ImagePyramid*> pyramids;
 };
+#endif
