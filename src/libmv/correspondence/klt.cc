@@ -255,7 +255,6 @@ bool KLTContext::TrackFeatureOneLevel(const Array3Df &image_and_gradient1,
                                       Vec2 *position2) {
   int i;
   float dx=0, dy=0;
-  max_iterations_ = 10;
   for (i = 0; i < max_iterations_; ++i) {
     // Compute gradient matrix and error vector.
     float gxx, gxy, gyy, ex, ey;
@@ -276,7 +275,7 @@ bool KLTContext::TrackFeatureOneLevel(const Array3Df &image_and_gradient1,
     // TODO(keir): Handle other tracking failure conditions and pass the
     // reasons out to the caller. For example, for pyramid tracking a failure
     // at a coarse level suggests trying again at a finer level.
-    if (Square(dx) + Square(dy) < min_update_distance2_) {
+    if (Square(dx) + Square(dy) < min_update_squared_distance_) {
       break;
     }
   }

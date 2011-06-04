@@ -6,7 +6,12 @@ typedef unsigned char ubyte;
 
 namespace libmv {
 
-class ImagePyramid;
+#ifndef LIBMV_IMAGE_IMAGE_PYRAMID_H
+class ImagePyramid {
+ public:
+  virtual ~ImagePyramid() {}
+};
+#endif
 
 #ifndef LIBMV_CORRESPONDENCE_KLT_H_
 struct KLTPointFeature {
@@ -20,13 +25,12 @@ typedef std::vector<KLTPointFeature> Features;
 
 class KLT {
  public:
-  static KLT* CreateContext(int pyramid_levels = 4, float sigma = 0.9);
+  static KLT* CreateContext(int pyramid_levels = 2, float sigma = 0.9);
   virtual ~KLT() {}
   virtual ImagePyramid* MakeImagePyramid(
     const ubyte* data, int width, int height) = 0;
   virtual Features Detect(ImagePyramid* first) = 0;
-  virtual Features Track(int frame, ImagePyramid* previous,
-                            ImagePyramid* next) = 0;
+  virtual Features Track(ImagePyramid* previous, ImagePyramid* next) = 0;
 };
 }
 
