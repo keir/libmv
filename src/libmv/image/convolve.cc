@@ -52,6 +52,7 @@ void ComputeGaussianKernel(double sigma, Vec *kernel, Vec *derivative) {
   }
   // Since images should not get brighter or darker, normalize.
   NormalizeL1(kernel);
+
   // Normalize the derivative differently. See
   // www.cs.duke.edu/courses/spring03/cps296.1/handouts/Image%20Processing.pdf
   double factor = 0.;
@@ -63,9 +64,9 @@ void ComputeGaussianKernel(double sigma, Vec *kernel, Vec *derivative) {
 
 template <int size, bool vertical>
 void Convolve(const Array3Df &in,
-                        const Vec &kernel,
-                        Array3Df *out_pointer,
-                        int plane) {
+              const Vec &kernel,
+              Array3Df *out_pointer,
+              int plane) {
   int width = in.Width();
   int height = in.Height();
   Array3Df &out = *out_pointer;
@@ -83,46 +84,49 @@ void Convolve(const Array3Df &in,
   const float* src = in.Data();
   float* dst = out.Data();
 
-  if(kernel.size()==2*size+1) { // fast path with unrolled loop
-    double coefficients[2*size+1];
-    for (int k = 0; k < 2*size+1; ++k) coefficients[k] = kernel(2*size-k);
+  // Fast path: if the kernel has a certain size, use the constant sized loops.
+  if (kernel.size() == 2 * size + 1) {
+    double coefficients[2 * size + 1];
+    for (int k = 0; k < 2 * size + 1; ++k) {
+      coefficients[k] = kernel(2 * size - k);
+    }
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {
         double sum = 0;
         for (int k = -size; k <= size; ++k) {
-          if(vertical) {
-            if (y+k >= 0 && y+k < height) {
-              sum += src[k*src_line_stride] * coefficients[k+size];
+          if (vertical) {
+            if (y + k >= 0 && y + k < height) {
+              sum += src[k * src_line_stride] * coefficients[k + size];
             }
           } else {
-            if (x+k >= 0 && x+k < width) {
-              sum += src[k*src_stride] * coefficients[k+size];
+            if (x + k >= 0 && x + k < width) {
+              sum += src[k * src_stride] * coefficients[k + size];
             }
           }
         }
-        dst[plane] = (float)sum;
+        dst[plane] = static_cast<float>(sum);
         src += src_stride;
         dst += dst_stride;
       }
     }
   } else {
-    int dynamic_size = kernel.size()/2;
+    int dynamic_size = kernel.size() / 2;
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {
         double sum = 0;
-        // slow path: this loop cannot be unrolled
+        // Slow path: this loop cannot be unrolled.
         for (int k = -dynamic_size; k <= dynamic_size; ++k) {
           if(vertical) {
-            if (y+k >= 0 && y+k < height) {
-              sum += src[k*src_line_stride] * kernel(2*size-(k+dynamic_size));
+            if (y + k >= 0 && y + k < height) {
+              sum += src[k * src_line_stride] * kernel(2 * size - (k + dynamic_size));
             }
           } else {
-            if (x+k >= 0 && x+k < width) {
-              sum += src[k*src_stride] * kernel(2*size-(k+dynamic_size));
+            if (x + k >= 0 && x + k < width) {
+              sum += src[k * src_stride] * kernel(2 * size - (k + dynamic_size));
             }
           }
         }
-        dst[plane] = (float)sum;
+        dst[plane] = static_cast<float>(sum);
         src += src_stride;
         dst += dst_stride;
       }
@@ -130,18 +134,39 @@ void Convolve(const Array3Df &in,
   }
 }
 
+template<bool vertical>
+void ConvolveRuntimeSized(const Array3Df &in,
+                          const Vec &kernel,
+                          Array3Df *out_pointer,
+                          int plane) {
+  // Use a dispatch table to make most convolutions used in practice use the
+  // fast path.
+  int half_width = kernel.size() / 2;
+  switch (half_width) {
+    default:
+    case 1: Convolve<1, vertical>(in, kernel, out_pointer, plane); break;
+    case 2: Convolve<2, vertical>(in, kernel, out_pointer, plane); break;
+    case 3: Convolve<3, vertical>(in, kernel, out_pointer, plane); break;
+    case 4: Convolve<4, vertical>(in, kernel, out_pointer, plane); break;
+    case 5: Convolve<5, vertical>(in, kernel, out_pointer, plane); break;
+    case 6: Convolve<6, vertical>(in, kernel, out_pointer, plane); break;
+    case 7: Convolve<7, vertical>(in, kernel, out_pointer, plane); break;
+    case 8: Convolve<8, vertical>(in, kernel, out_pointer, plane); break;
+  }
+}
+
 void ConvolveHorizontal(const Array3Df &in,
                         const Vec &kernel,
                         Array3Df *out_pointer,
                         int plane) {
-  return Convolve<3,false>(in,kernel,out_pointer,plane);
+  ConvolveRuntimeSized<false>(in, kernel, out_pointer, plane);
 }
 
 void ConvolveVertical(const Array3Df &in,
-                        const Vec &kernel,
-                        Array3Df *out_pointer,
-                        int plane) {
-  return Convolve<3,true>(in,kernel,out_pointer,plane);
+                      const Vec &kernel,
+                      Array3Df *out_pointer,
+                      int plane) {
+  ConvolveRuntimeSized<true>(in, kernel, out_pointer, plane);
 }
 
 void ConvolveGaussian(const Array3Df &in,
@@ -168,7 +193,7 @@ void BlurredImageAndDerivatives(const Array3Df &in,
   ConvolveVertical(in, kernel, &tmp);
   ConvolveHorizontal(tmp, kernel, blurred_image);
 
-  // Compute first derivative in x.
+  // Compute first derivative in x (reusing vertical convolution above).
   ConvolveHorizontal(tmp, derivative, gradient_x);
 
   // Compute first derivative in y.
