@@ -34,8 +34,7 @@ inline double Gaussian(double x, double sigma) {
 }
 // 2D gaussian (zero mean)
 // (9) in http://mathworld.wolfram.com/GaussianFunction.html
-inline double Gaussian2D(double x, double y, double sigma)
-{
+inline double Gaussian2D(double x, double y, double sigma) {
   return 1.0/(2.0*M_PI*sigma*sigma) * exp( -(x*x+y*y)/(2.0*sigma*sigma));
 }
 inline double GaussianDerivative(double x, double sigma) {
@@ -70,8 +69,8 @@ void BlurredImageAndDerivatives(const FloatImage &in,
                                 FloatImage *gradient_x,
                                 FloatImage *gradient_y);
 
-// Blur and take the gradients of an image, storing the results inside the tree
-// channels of blurred_and_gradxy.
+// Blur and take the gradients of an image, storing the results inside the
+// three channels of blurred_and_gradxy.
 void BlurredImageAndDerivativesChannels(const FloatImage &in,
                                         double sigma,
                                         FloatImage *blurred_and_gradxy);
