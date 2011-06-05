@@ -19,7 +19,18 @@ struct Profile {
 #define profile(msg) Profile p(msg,__FILE__, __LINE__)
 };
 
+#ifdef PPROF
+#include <google/profiler.h>
+struct PProf {
+  PProf() { ProfilerStart("profile"); }
+  ~PProf() { ProfilerStop(); }
+};
+#endif
+
 int main(int argc, char *argv[]) {
+#ifdef PPROF
+  PProf p;
+#endif
   QApplication app(argc, argv);
   Tracker window;
   window.show();
@@ -106,6 +117,11 @@ void Tracker::seek(int frame) {
     profile("Mipmap");
     pyramids.insert(frame, klt->MakeImagePyramid(
           image.constBits(),image.width(),image.height()));
+    /*libmv::Array3Du data;
+    libmv::FloatArrayToScaledByteArray(pyramids[frame]->Level(0),&data,true);
+    for(int i=0;i<image.width()*image.height();i++)
+      ((uint*)image.bits())[i]=qRgb(data.Data()[i*3],data.Data()[i*3+1],data.Data()[i*3+2]);
+    pixmap->setPixmap(QPixmap::fromImage(image));*/
   }
   libmv::Features features;
   if(frame==current+1) {
@@ -151,7 +167,7 @@ void Tracker::last() {
 
 void Tracker::start() {
   playAction->setChecked(true);
-  playTimer.start(100);
+  playTimer.start(0);
 }
 void Tracker::stop() {
   playAction->setChecked(false);

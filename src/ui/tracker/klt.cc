@@ -34,11 +34,12 @@ class ConcreteKLT : public KLT {
 
   ImagePyramid* MakeImagePyramid(const ubyte* data, int width, int height) {
     Array3Df image(height, width);
-    for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
+    float* dst = image.Data();
+    for (int i = 0; i < width*height; ++i) {
       // shall we reverse gamma too ?
-      image(y, x, 0) = (0.2126*data[(y*width+x)*4+2]+
-                        0.7152*data[(y*width+x)*4+1]+
-                        0.0722*data[(y*width+x)*4+0]) / 255;
+      dst[i] = (0.2126*data[i*4+2]+
+                0.7152*data[i*4+1]+
+                0.0722*data[i*4+0]) / 255;
     }
     return libmv::MakeImagePyramid(image, pyramid_levels_, sigma_);
   }
@@ -49,7 +50,7 @@ class ConcreteKLT : public KLT {
   }
 
   Features Track(ImagePyramid* previous, ImagePyramid* next) {
-    for(size_t i = 0 ; i < features_.size() ; i++ ) {
+    for(size_t i = 0; i < features_.size(); i++ ) {
       KLTPointFeature& feature = features_[i];
       if(feature.trackness==0) continue;
       if (!klt_.TrackFeature(previous, feature, next, &feature))
