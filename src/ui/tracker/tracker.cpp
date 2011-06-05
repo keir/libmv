@@ -116,7 +116,7 @@ void Tracker::seek(int frame) {
   if(!pyramids[frame]) {
     profile("Mipmap");
     pyramids.insert(frame, klt->MakeImagePyramid(
-          image.constBits(),image.width(),image.height()));
+          image.bits(),image.width(),image.height()));
     /*libmv::Array3Du data;
     libmv::FloatArrayToScaledByteArray(pyramids[frame]->Level(0),&data,true);
     for(int i=0;i<image.width()*image.height();i++)
