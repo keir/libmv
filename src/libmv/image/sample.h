@@ -35,8 +35,8 @@ inline T SampleNearest(const Array3D<T> &image,
 }
 
 static inline void LinearInitAxis(float fx, int width,
-                           int *x1, int *x2,
-                           float *dx1, float *dx2) {
+                                  int *x1, int *x2,
+                                  float *dx1, float *dx2) {
   const int ix = int(fx);
   if (ix < 0) {
     *x1 = 0;
