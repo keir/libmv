@@ -70,7 +70,7 @@ void BlurredImageAndDerivatives(const FloatImage &in,
                                 FloatImage *gradient_x,
                                 FloatImage *gradient_y);
 
-// Blur and take the gradients of an image, storing the results inside the tree
+// Blur and take the gradients of an image, storing the results inside the 3
 // channels of blurred_and_gradxy.
 void BlurredImageAndDerivativesChannels(const FloatImage &in,
                                         double sigma,

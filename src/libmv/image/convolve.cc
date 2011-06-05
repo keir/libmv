@@ -26,7 +26,7 @@
 namespace libmv {
 
 // Compute a Gaussian kernel and derivative, such that you can take the
-// derivitave of an image by convolving with the kernel horizontally then the
+// derivative of an image by convolving with the kernel horizontally then the
 // derivative vertically to get (eg) the y derivative.
 void ComputeGaussianKernel(double sigma, Vec *kernel, Vec *derivative) {
   assert(sigma >= 0.0);
@@ -61,13 +61,13 @@ void ComputeGaussianKernel(double sigma, Vec *kernel, Vec *derivative) {
   *derivative /= factor;
 }
 
-void ConvolveHorizontal(const Array3Df &in,
+template <int size, bool vertical>
+void Convolve(const Array3Df &in,
                         const Vec &kernel,
                         Array3Df *out_pointer,
                         int plane) {
-  int halfwidth = kernel.size() / 2;
-  int num_columns = in.Width();
-  int num_rows = in.Height();
+  int width = in.Width();
+  int height = in.Height();
   Array3Df &out = *out_pointer;
   if (plane == -1) {
     out.ResizeLike(in);
@@ -77,51 +77,71 @@ void ConvolveHorizontal(const Array3Df &in,
   assert(kernel.size() % 2 == 1);
   assert(&in != out_pointer);
 
-  for (int r = 0; r < num_rows; ++r)  {
-    for (int c = 0; c < num_columns; ++c)  {
-      double sum = 0.0;
-      int l = 0;
-      for (int k = kernel.size() - 1; k >= 0; --k, ++l) {
-        int cc = c - halfwidth + l;
-        if (0 <= cc && cc < num_columns) {
-          sum += in(r, cc) * kernel(k);
+  int src_line_stride = in.Stride(0);
+  int src_stride = in.Stride(1);
+  int dst_stride = out.Stride(1);
+  const float* src = in.Data();
+  float* dst = out.Data();
+
+  if(kernel.size()==2*size+1) { // fast path with unrolled loop
+    double coefficients[2*size+1];
+    for (int k = 0; k < 2*size+1; ++k) coefficients[k] = kernel(2*size-k);
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        double sum = 0;
+        for (int k = -size; k <= size; ++k) {
+          if(vertical) {
+            if (y+k >= 0 && y+k < height) {
+              sum += src[k*src_line_stride] * coefficients[k+size];
+            }
+          } else {
+            if (x+k >= 0 && x+k < width) {
+              sum += src[k*src_stride] * coefficients[k+size];
+            }
+          }
         }
+        dst[plane] = (float)sum;
+        src += src_stride;
+        dst += dst_stride;
       }
-      out(r, c, plane) = static_cast<float>(sum);
+    }
+  } else {
+    int dynamic_size = kernel.size()/2;
+    for (int y = 0; y < height; ++y) {
+      for (int x = 0; x < width; ++x) {
+        double sum = 0;
+        // slow path: this loop cannot be unrolled
+        for (int k = -dynamic_size; k <= dynamic_size; ++k) {
+          if(vertical) {
+            if (y+k >= 0 && y+k < height) {
+              sum += src[k*src_line_stride] * kernel(2*size-(k+dynamic_size));
+            }
+          } else {
+            if (x+k >= 0 && x+k < width) {
+              sum += src[k*src_stride] * kernel(2*size-(k+dynamic_size));
+            }
+          }
+        }
+        dst[plane] = (float)sum;
+        src += src_stride;
+        dst += dst_stride;
+      }
     }
   }
 }
 
-// This could certainly be accelerated.
+void ConvolveHorizontal(const Array3Df &in,
+                        const Vec &kernel,
+                        Array3Df *out_pointer,
+                        int plane) {
+  return Convolve<3,false>(in,kernel,out_pointer,plane);
+}
+
 void ConvolveVertical(const Array3Df &in,
-                      const Vec &kernel,
-                      Array3Df *out_pointer,
-                      int plane) {
-  int halfwidth = kernel.size() / 2;
-  int num_columns = in.Width();
-  int num_rows = in.Height();
-  Array3Df &out = *out_pointer;
-  if (plane == -1) {
-    out.ResizeLike(in);
-    plane = 0;
-  }
-
-  assert(kernel.size() % 2 == 1);
-  assert(&in != out_pointer);
-
-  for (int i = 0; i < num_columns; ++i)  {
-    for (int j = 0; j < num_rows; ++j)  {
-      double sum = 0.0;
-      int l = 0;
-      for (int k = kernel.size()-1; k >= 0; --k, ++l) {
-        int jj = j - halfwidth + l;
-        if (0 <= jj && jj < num_rows) {
-          sum += in(jj, i) * kernel(k);
-        }
-      }
-      out(j, i, plane) = static_cast<float>(sum);
-    }
-  }
+                        const Vec &kernel,
+                        Array3Df *out_pointer,
+                        int plane) {
+  return Convolve<3,true>(in,kernel,out_pointer,plane);
 }
 
 void ConvolveGaussian(const Array3Df &in,
@@ -256,6 +276,6 @@ void BoxFilter(const Array3Df &in,
   Array3Df tmp;
   BoxFilterHorizontal(in, box_width, &tmp);
   BoxFilterVertical(tmp, box_width, out);
-};
+}
 
 }  // namespace libmv
