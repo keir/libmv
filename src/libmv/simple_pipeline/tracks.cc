@@ -28,6 +28,7 @@ namespace libmv {
 void Tracks::Insert(int image, int track, double x, double y) {
   Marker marker = { image, track, x, y };
   markers_.push_back(marker);
+  return &markers_.back();
 }
 
 void Tracks::MarkersInBothImages(int image1,

@@ -33,7 +33,7 @@ struct Marker {
 
 class Tracks {
  public:
-  void Insert(int image, int track, double x, double y);
+  Marker *Insert(int image, int track, double x, double y);
   void TracksInBothImages(int image1, int image2, vector<Marker> *markers);
   void TracksInImage(int image, vector<Marker> *markers);
   void ImagesWithTrack(int track, vector<Marker> *markers);
