@@ -112,40 +112,23 @@ void Convolve(const Array3Df &in,
   int src_stride = in.Stride(1);
   int dst_stride = out.Stride(1);
   const float* src = in.Data();
-  float* dst = out.Data()+plane;
+  float* dst = out.Data() + plane;
 
   // Use a dispatch table to make most convolutions used in practice use the
   // fast path.
   int half_width = kernel.size() / 2;
   switch (half_width) {
-    case 1:
-      FastConvolve<1, vertical>(kernel, width, height, src, src_stride,
-                                src_line_stride, dst, dst_stride);
-      break;
-    case 2:
-      FastConvolve<2, vertical>(kernel, width, height, src, src_stride,
-                                src_line_stride, dst, dst_stride);
-      break;
-    case 3:
-      FastConvolve<3, vertical>(kernel, width, height, src, src_stride,
-                                src_line_stride, dst, dst_stride);
-      break;
-    case 4:
-      FastConvolve<4, vertical>(kernel, width, height, src, src_stride,
-                                src_line_stride, dst, dst_stride);
-      break;
-    case 5:
-      FastConvolve<5, vertical>(kernel, width, height, src, src_stride,
-                                src_line_stride, dst, dst_stride);
-      break;
-    case 6:
-      FastConvolve<6, vertical>(kernel, width, height, src, src_stride,
-                                src_line_stride, dst, dst_stride);
-      break;
-    case 7:
-      FastConvolve<7, vertical>(kernel, width, height, src, src_stride,
-                                src_line_stride, dst, dst_stride);
-      break;
+#define static_convolution( size ) case size: \
+  FastConvolve<size, vertical>(kernel, width, height, src, src_stride, \
+                               src_line_stride, dst, dst_stride); break;
+    static_convolution(1)
+    static_convolution(2)
+    static_convolution(3)
+    static_convolution(4)
+    static_convolution(5)
+    static_convolution(6)
+    static_convolution(7)
+#undef static_convolution
     default:
       int dynamic_size = kernel.size() / 2;
       for (int y = 0; y < height; ++y) {
