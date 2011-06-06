@@ -259,7 +259,7 @@ inline void TracksInAllImages(const Matches &matches,
   }
   Intersect(&all_tracks);
   CHECK(all_tracks.size() == 1);
-  for (int i = 0; i < all_tracks[0].size(); ++i) {
+  for (size_t i = 0; i < all_tracks[0].size(); ++i) {
     tracks->push_back(all_tracks[0][i]);
   }
 }

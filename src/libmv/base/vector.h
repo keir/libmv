@@ -81,7 +81,7 @@ class vector {
         T * begin()                { return data_;            }
         T * end()                  { return data_+size_;      }
 
-  void resize(int size) {
+  void resize(size_t size) {
     reserve(size);
     if (size > size_) {
       construct(size_, size);
@@ -154,8 +154,8 @@ class vector {
   }
 
   Allocator allocator_;
-  unsigned int size_;
-  unsigned int capacity_;
+  size_t size_;
+  size_t capacity_;
   T *data_;
 };
 

@@ -3,7 +3,7 @@ SET(CORRESPONDENCE_SRC klt.cc
                        feature.cc 
                        matches.cc 
                        feature_matching.cc
-                       feature_matching_FLANN.cc
+#                      feature_matching_FLANN.cc
                        tracker.cc
                        robust_tracker.cc
                        planar_tracker.cc

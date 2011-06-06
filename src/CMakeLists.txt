@@ -29,7 +29,7 @@ PROJECT(LIBMV C CXX)
 
 ENABLE_TESTING()
 
-SET(CMAKE_MODULE_PATH  
+SET(CMAKE_MODULE_PATH
   "${LIBMV_SOURCE_DIR}/CMake"
   "${LIBMV_SOURCE_DIR}/CMake/modules")
 
@@ -67,7 +67,7 @@ IF(MSVC)
 ENDIF(MSVC)
 
 # To build shared libs
-# OPTION(BUILD_SHARED_LIBS "Build dynamic shared libraries (.dll/.so)." OFF)
+OPTION(BUILD_SHARED_LIBS "Build dynamic shared libraries (.dll/.so)." ON)
 
 INCLUDE(ConfigureBuild)
 

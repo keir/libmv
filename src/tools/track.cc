@@ -43,27 +43,6 @@ using namespace libmv;
 using std::sort;
 using std::string;
 
-void WriteOutputImage(const FloatImage &image,
-                      Matches::Points features,
-                      const char *output_filename) {
-  FloatImage output_image(image.Height(), image.Width(), 3);
-  for (int i = 0; i < image.Height(); ++i) {
-    for (int j = 0; j < image.Width(); ++j) {
-      output_image(i,j,0) =
-        output_image(i,j,1) =
-        output_image(i,j,2) = image(i,j);
-    }
-  }
-
-  Vec3 green;
-  green << 0, 1, 0;
-  for (; features; ++features) {
-    DrawFeature(*features.feature(), green, &output_image);
-  }
-
-  WritePnm(output_image, output_filename);
-}
-
 int main(int argc, char **argv) {
   google::SetUsageMessage("Track a sequence.");
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -98,12 +77,6 @@ int main(int argc, char **argv) {
     matches.Insert(0, i, *it);
   }
 
-  if (FLAGS_debug_images) {
-    WriteOutputImage(
-        pyramid_sequence->Pyramid(0)->Level(0),
-        matches.InImage<PointFeature>(0),
-        (files[0]+".out.ppm").c_str());
-  }
   for (size_t i = 1; i < files.size(); ++i) {
     printf("Tracking %2zd features in %s\n", features.size(), files[i].c_str());
 
@@ -116,13 +89,6 @@ int main(int argc, char **argv) {
       } else {
         delete next_position;
       }
-    }
-
-    if (FLAGS_debug_images) {
-      WriteOutputImage(
-          pyramid_sequence->Pyramid(i)->Level(0),
-          matches.InImage<PointFeature>(i),
-          (files[i]+".out.ppm").c_str());
     }
   }
 

@@ -47,7 +47,7 @@ class ConcreteImagePyramid : public ImagePyramid {
     BlurredImageAndDerivativesChannels(image, sigma, &levels_[0]);
 
     vector<FloatImage> downsamples(num_levels);
-    downsamples[0] = image;
+    downsamples[0] = image;  // FIXME: useless copy
 
     for (int i = 1; i < NumLevels(); ++i) {
       DownsampleChannelsBy2(downsamples[i-1], &downsamples[i]);

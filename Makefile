@@ -2,7 +2,7 @@ all : debug
 
 debug :
 	mkdir -p bin-dbg
-	cd bin-dbg && cmake -DCMAKE_BUILD_TYPE=Debug ../src && make -j4
+	cd bin-dbg && cmake -DCMAKE_BUILD_TYPE=Debug ../src && make
 
 release :
 	mkdir -p bin-opt
