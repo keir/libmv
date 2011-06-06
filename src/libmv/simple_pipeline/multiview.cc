@@ -20,7 +20,7 @@
 
 #include <cmath>
 #include "libmv/multiview/homography.h"
-#include "libmv/multiview/fundmental.h"
+#include "libmv/multiview/fundamental.h"
 
 namespace libmv {
 

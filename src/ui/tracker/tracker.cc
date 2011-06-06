@@ -19,7 +19,6 @@
 using libmv::FloatImage;
 using libmv::Marker;
 using std::vector;
-using std::map;
 using std::pair;
 using std::make_pair;
 
@@ -35,41 +34,27 @@ class TrackerScene : public QGraphicsScene {
   // Only add Q_OBJECT when there are slots.
  public:
   TrackerScene(libmv::Tracks *tracks) : tracks_(tracks) {}
-  virtual ~TrackerScene() {
-     //TODO(keir): Leaky!
+  ~TrackerScene() {
+    foreach(QGraphicsItem* item, markers_) { removeItem(item); delete item; }
   }
 
   void SetFrame(int frame) {
     LG << "Setting frame to " << frame;
-    foreach(QGraphicsItem* item, not_owned_markers_) removeItem(item);
-    not_owned_markers_.clear();
+
+    foreach(QGraphicsItem* item, markers_) item->hide();
 
     vector<Marker> markers;
     tracks_->TracksInImage(frame, &markers);
     LG << "Got " << markers.size() << " markers.";
 
-    const int hw = 40;
+    const int half_size = 32;
     foreach(const Marker& marker, markers) {
       pair<int, int> key = make_pair(marker.image, marker.track);
-      if (!markers_.contains(key)) {
-        QGraphicsRectItem *item = new QGraphicsRectItem(marker.x - hw,
-                                                        marker.y - hw,
-                                                        2 * hw + 1,
-                                                        2 * hw + 1);
-        QPen pen;
-        pen.setStyle(Qt::DashDotLine);
-        pen.setWidth(10);
-        pen.setBrush(Qt::green);
-        //pen.setCapStyle(Qt::RoundCap);
-        //pen.setJoinStyle(Qt::RoundJoin);
-        item->setPen(pen);
-
-        markers_[key] = item;
-      }
-      QGraphicsItem *item = markers_[key];
-      LG << "Adding item...";
-      addItem(item);
-      not_owned_markers_ << item;
+      QGraphicsItem*& item = markers_[key];
+      if (!item) item = addRect(marker.x - half_size, marker.y - half_size,
+                                2 * half_size, 2 * half_size,
+                                QPen(QBrush(Qt::green),3));
+      item->show();
     }
     current_frame_ = frame;
   }
@@ -97,13 +82,11 @@ class TrackerScene : public QGraphicsScene {
 
  private:
   QMap<pair<int, int>, QGraphicsItem *> markers_;
-  QVector<QGraphicsItem *> not_owned_markers_;
   libmv::Tracks *tracks_;
   int current_frame_;
 };
 
-// Only supports bags-of-files type movies for now; use QMovie later.
-// TODO(keir): This doesn't belong in the header.
+// Only supports bags-of-files type movies
 class Clip {
  public:
   Clip() {}
@@ -177,7 +160,6 @@ bool CopyRegionFromQImage(QImage image,
   for (int y = *y0; y < *y0 + h; ++y) {
     for (int x = *x0; x < *x0 + w; ++x) {
       // This assumes BGR row-major ordering for the QImage's raw bytes.
-      // TODO(keir): Check that that is true!
       const unsigned char *pixel = data + (y * width + x) * 4;
       (*region)(y - *y0, x - *x0, 0) = (0.2126 * pixel[2] +
                                         0.7152 * pixel[1] +
@@ -194,7 +176,6 @@ libmv::RegionTracker *CreateRegionTracker() {
   return new libmv::PyramidRegionTracker(klt_region_tracker, 3);
 }
 
-// TODO(keir): Leaks clip and tracks.
 Tracker::Tracker()
     : current_(-1),
       clip_(new Clip),
@@ -248,6 +229,11 @@ Tracker::Tracker()
   }
 }
 
+Tracker::~Tracker() {
+  delete tracks_;
+  delete scene;
+}
+
 void Tracker::open() {
   open(QFileDialog::getOpenFileNames(
       this,
@@ -279,7 +265,7 @@ void Tracker::seek(int frame) {
   QImage image = clip_->Frame(frame);
   if (!pixmap) {
     pixmap = scene->addPixmap(QPixmap::fromImage(image));
-    view.fitInView(pixmap);
+    view.fitInView(pixmap,Qt::KeepAspectRatio);
   } else {
     pixmap->setPixmap(QPixmap::fromImage(image));
   }
@@ -288,14 +274,11 @@ void Tracker::seek(int frame) {
   // from the previous frame into this one.
   vector<Marker> marker_in_previous_frame;
   tracks_->TracksInImage(current_, &marker_in_previous_frame);
-  for (size_t i = 0; i < marker_in_previous_frame.size(); ++i) {
-    const Marker &marker = marker_in_previous_frame[i];
+  foreach(const Marker &marker, marker_in_previous_frame) {
     //if (active_tracks_.find(marker.track) == active_tracks_.end()) {
     //  continue
     //}
-    // TODO(keir): For now this uses a fixed 32x32 region. What's needed is
-    // an extension to use custom sized boxes around the tracked region.
-    int size = 128;
+    int size = 64;
     int half_size = size / 2;
 
     // [xy][01] is the upper right box corner.
@@ -374,5 +357,5 @@ void Tracker::togglePlay(bool play) {
 }
 
 void Tracker::resizeEvent(QResizeEvent *) {
-  view.fitInView(pixmap);
+  view.fitInView(pixmap,Qt::KeepAspectRatio);
 }

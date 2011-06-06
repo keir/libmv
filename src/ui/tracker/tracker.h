@@ -22,7 +22,7 @@ class Tracker : public QMainWindow {
   Q_OBJECT
  public:
   Tracker();
-  virtual ~Tracker() {}
+  ~Tracker();
  public slots:
   void open();
   void seek(int);
@@ -42,7 +42,7 @@ class Tracker : public QMainWindow {
   QAction* playAction;
   QSlider slider;
   QGraphicsView view;
-  TrackerScene *scene;  // TODO(keir): Leaky!
+  TrackerScene *scene;
   QGraphicsPixmapItem* pixmap;
   QVector<QGraphicsPathItem*> tracks;
   QTimer playTimer;

@@ -42,15 +42,9 @@ Marker *Tracks::Insert(int image, int track, double x, double y) {
     }
   }
   LG << "Making new marker " << track << " with track " << track;
-  Marker marker = { image, track, x, y };
+  Marker marker = { x, y, image, track };
   markers_.push_back(marker);
 
-  // TODO(keir): Figure out why pushing back with a struct is not working. The
-  // default copy constructor should do the rigth thing here.
-  markers_.back().image = image;
-  markers_.back().track = track;
-  markers_.back().x = x;
-  markers_.back().y = y;
   LG << "Inserted marker track: " << markers_.back().track;
 
   return &markers_.back();
