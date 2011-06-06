@@ -3,11 +3,13 @@
 //
 #include "tracker.h"
 #include "libmv/simple_pipeline/tracks.h"
+#include "libmv/logging/logging.h"
 #include "libmv/tools/tool.h"
 #include "libmv/image/image.h"
 #include "libmv/tracking/klt_region_tracker.h"
 #include "libmv/tracking/pyramid_region_tracker.h"
 
+#include <QGraphicsSceneMouseEvent>
 #include <QFileDialog>
 #include <QDesktopWidget>
 #include <QGraphicsPixmapItem>
@@ -17,6 +19,9 @@
 using libmv::FloatImage;
 using libmv::Marker;
 using std::vector;
+using std::map;
+using std::pair;
+using std::make_pair;
 
 int main(int argc, char *argv[]) {
   libmv::Init("", &argc, &argv);
@@ -24,6 +29,11 @@ int main(int argc, char *argv[]) {
   Tracker window;
   window.show();
   return app.exec();
+}
+
+template<typename Container, typename Key>
+bool ContainsKey(const Container &container, const Key &key) {
+  return container.find(key) != container.end();
 }
 
 // Minimal scope profiling tool.
@@ -35,6 +45,80 @@ struct Profile {
   }
   ~Profile() { fprintf(stderr,"%d ms\n",time.elapsed()); fflush(stderr); }
 #define profile(msg) Profile p(msg,__FILE__, __LINE__)
+};
+
+class TrackerScene : public QGraphicsScene {
+  // Only add Q_OBJECT when there are slots.
+ public:
+  TrackerScene(libmv::Tracks *tracks) : tracks_(tracks) {}
+  virtual ~TrackerScene() {
+     //TODO(keir): Leaky!
+  }
+
+  void SetFrame(int frame) {
+    LG << "Setting frame to " << frame;
+    for (int i = 0; i < not_owned_markers_.size(); ++i) {
+      removeItem(not_owned_markers_[i]);
+    }
+    not_owned_markers_.clear();
+
+    vector<Marker> markers;
+    tracks_->TracksInImage(frame, &markers);
+    LG << "Got " << markers.size() << " markers.";
+
+    const int hw = 8;
+    for (int i = 0; i < markers.size(); ++i) {
+      const Marker &marker = markers[i];
+      pair<int, int> key = make_pair(marker.image, marker.track);
+      if (!ContainsKey(markers_, key)) {
+        QGraphicsRectItem *item = new QGraphicsRectItem(marker.x - hw,
+                                                        marker.y - hw,
+                                                        2 * hw + 1,
+                                                        2 * hw + 1);
+        QPen pen;
+        pen.setStyle(Qt::DashDotLine);
+        pen.setWidth(2);
+        pen.setBrush(Qt::green);
+        pen.setCapStyle(Qt::RoundCap);
+        pen.setJoinStyle(Qt::RoundJoin);
+        item->setPen(pen);
+
+        markers_[key] = item;
+      }
+      QGraphicsItem *item = markers_[key];
+      LG << "Adding item...";
+      addItem(item);
+      not_owned_markers_.push_back(item);
+    }
+    current_frame_ = frame;
+  }
+
+ protected:
+  void mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
+    LG << "Got mouse click at " << mouseEvent->scenePos().x()
+       << ", " << mouseEvent->scenePos().y();
+
+    if (mouseEvent->button() != Qt::LeftButton) {
+      return;
+    }
+
+    int new_track = tracks_->MaxTrack() + 1;
+    LG << "Inserting new marker for frame " << current_frame_
+       << " track " << new_track
+       << " with x=" << mouseEvent->scenePos().x()
+       << ", y=" << mouseEvent->scenePos().y();
+
+    tracks_->Insert(current_frame_, new_track,
+                    mouseEvent->scenePos().x(),
+                    mouseEvent->scenePos().y());
+    SetFrame(current_frame_);
+  }
+
+ private:
+  map<pair<int, int>, QGraphicsItem *> markers_;
+  vector<QGraphicsItem *> not_owned_markers_;
+  libmv::Tracks *tracks_;
+  int current_frame_;
 };
 
 // Only supports bags-of-files type movies for now; use QMovie later.
@@ -131,8 +215,7 @@ Tracker::Tracker()
     : current_(-1),
       clip_(new Clip),
       tracks_(new libmv::Tracks),
-      region_tracker_(CreateRegionTracker()),
-      max_track_(-1) {
+      region_tracker_(CreateRegionTracker()) {
   setWindowTitle("LibMV Simple Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
 
@@ -162,7 +245,8 @@ Tracker::Tracker()
                      this, SLOT(last()));
 
   // Set up the scene.
-  view.setScene(&scene);
+  scene = new TrackerScene(tracks_);
+  view.setScene(scene);
   view.setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
   view.setFrameShape(QFrame::NoFrame);
   view.setDragMode(QGraphicsView::ScrollHandDrag);
@@ -189,7 +273,7 @@ void Tracker::open() {
 }
 
 void Tracker::open(QStringList paths) {
-  scene.clear();
+  scene->clear();
   pixmap = 0;
   clip_->Open(paths);
   frameNumber.setMaximum(clip_->size() - 1);
@@ -210,7 +294,7 @@ void Tracker::seek(int frame) {
   // Get and display the image.
   QImage image = clip_->Frame(frame);
   if (!pixmap) {
-    pixmap = scene.addPixmap(QPixmap::fromImage(image));
+    pixmap = scene->addPixmap(QPixmap::fromImage(image));
     view.fitInView(pixmap);
   } else {
     pixmap->setPixmap(QPixmap::fromImage(image));
@@ -265,6 +349,9 @@ void Tracker::seek(int frame) {
   current_image_ = image;
   slider.setValue(frame);
   frameNumber.setValue(frame);
+
+  // Now updated the view.
+  scene->SetFrame(frame);
 }
 
 void Tracker::first() {

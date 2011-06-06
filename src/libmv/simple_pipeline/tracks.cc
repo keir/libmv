@@ -32,7 +32,6 @@ Marker *Tracks::Insert(int image, int track, double x, double y) {
   // TODO(keir): Wow, this is quadratic for repeated insertions. Fix this by
   // adding a smarter data structure like a set<>.
   for (int i = 0; i < markers_.size(); ++i) {
-    markers_[i].image;
     if (markers_[i].image == image &&
         markers_[i].track == track) {
       markers_[i].x = x;
