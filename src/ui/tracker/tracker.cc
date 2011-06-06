@@ -132,6 +132,7 @@ Tracker::Tracker()
       clip_(new Clip),
       tracks_(new libmv::Tracks),
       region_tracker_(CreateRegionTracker()) {
+      max_track_(-1) {
   setWindowTitle("LibMV Simple Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
 

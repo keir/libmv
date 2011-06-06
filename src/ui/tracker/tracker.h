@@ -49,5 +49,6 @@ private:
     libmv::Tracks *tracks_;
     libmv::RegionTracker *region_tracker_;
     QImage current_image_;
+    int max_track_;
 };
 #endif
