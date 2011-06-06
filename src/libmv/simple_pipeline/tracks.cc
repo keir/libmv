@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "libmv/logging/logging.h"
 #include "libmv/numeric/numeric.h"
 #include "libmv/simple_pipeline/tracks.h"
 
@@ -36,11 +37,23 @@ Marker *Tracks::Insert(int image, int track, double x, double y) {
         markers_[i].track == track) {
       markers_[i].x = x;
       markers_[i].y = y;
+      LG << "Overwriting marker " << i << " with track " << markers_[i].track;
       return &markers_[i];
     }
   }
+  LG << "Making new marker " << track << " with track " << track;
   Marker marker = { image, track, x, y };
   markers_.push_back(marker);
+
+  // TODO(keir): Figure out why pushing back with a struct is not working. The
+  // default copy constructor should do the rigth thing here.
+  markers_.back().image = image;
+  markers_.back().track = track;
+  markers_.back().x = x;
+  markers_.back().y = y;
+  LG << "Inserted marker track: " << markers_.back().track;
+  LG << "Inserted marker track #2: " << markers_[0].track;
+
   return &markers_.back();
 }
 
@@ -105,9 +118,12 @@ int Tracks::MaxImage() const {
 
 int Tracks::MaxTrack() const {
   int max_track = -1;
+  LG << "markers_.size() " << markers_.size();
   for (int i = 0; i < markers_.size(); ++i) {
+    LG << "markers_[i].track " << markers_[i].track;
     max_track = std::max(markers_[i].track, max_track);
   }
+  LG << "Max track: " << max_track;
   return max_track;
 }
 
