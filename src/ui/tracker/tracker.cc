@@ -48,7 +48,7 @@ class TrackerScene : public QGraphicsScene {
     tracks_->TracksInImage(frame, &markers);
     LG << "Got " << markers.size() << " markers.";
 
-    const int hw = 8;
+    const int hw = 40;
     foreach(const Marker& marker, markers) {
       pair<int, int> key = make_pair(marker.image, marker.track);
       if (!markers_.contains(key)) {
@@ -58,10 +58,10 @@ class TrackerScene : public QGraphicsScene {
                                                         2 * hw + 1);
         QPen pen;
         pen.setStyle(Qt::DashDotLine);
-        pen.setWidth(2);
+        pen.setWidth(10);
         pen.setBrush(Qt::green);
-        pen.setCapStyle(Qt::RoundCap);
-        pen.setJoinStyle(Qt::RoundJoin);
+        //pen.setCapStyle(Qt::RoundCap);
+        //pen.setJoinStyle(Qt::RoundJoin);
         item->setPen(pen);
 
         markers_[key] = item;
@@ -164,8 +164,8 @@ bool CopyRegionFromQImage(QImage image,
   }
 
   // Clip the region on the lower left.
-  w = std::min(w, width - *x0);
-  h = std::min(h, height - *y0);
+  w = std::min(w, std::max(width - *x0, 0));
+  h = std::min(h, std::max(height - *y0, 0));
 
   // The region is entirely outside the given image.
   if (w <= 0 || h <= 0) {
@@ -173,22 +173,25 @@ bool CopyRegionFromQImage(QImage image,
   }
 
   // Now that clipping is done, do the blit.
-  region->resize(w, h);
+  region->resize(h, w);
   for (int y = *y0; y < *y0 + h; ++y) {
     for (int x = *x0; x < *x0 + w; ++x) {
       // This assumes BGR row-major ordering for the QImage's raw bytes.
       // TODO(keir): Check that that is true!
       const unsigned char *pixel = data + (y * width + x) * 4;
-      (*region)(y, x, 0) = (0.2126 * pixel[2] +
-                            0.7152 * pixel[1] +
-                            0.0722 * pixel[0]) / 255;
+      (*region)(y - *y0, x - *x0, 0) = (0.2126 * pixel[2] +
+                                        0.7152 * pixel[1] +
+                                        0.0722 * pixel[0]) / 255;
     }
   }
   return true;
 }
 
 libmv::RegionTracker *CreateRegionTracker() {
-  return new libmv::PyramidRegionTracker(new libmv::KltRegionTracker, 3);
+  libmv::KltRegionTracker *klt_region_tracker = new libmv::KltRegionTracker;
+  klt_region_tracker->half_window_size = 5;
+  klt_region_tracker->max_iterations = 200;
+  return new libmv::PyramidRegionTracker(klt_region_tracker, 3);
 }
 
 // TODO(keir): Leaks clip and tracks.
@@ -292,25 +295,29 @@ void Tracker::seek(int frame) {
     //}
     // TODO(keir): For now this uses a fixed 32x32 region. What's needed is
     // an extension to use custom sized boxes around the tracked region.
-    int size = 33;
+    int size = 128;
     int half_size = size / 2;
 
+    // [xy][01] is the upper right box corner.
     int x0 = marker.x - half_size;
     int y0 = marker.y - half_size;
     FloatImage old_patch;
-    if (!CopyRegionFromQImage(current_image_, 32, 32,
+    if (!CopyRegionFromQImage(current_image_, size, size,
                               &x0, &y0,
                               &old_patch)) {
       // TODO(keir): Must handle this case! Currently no marker delete.
+      LG << "Copy from old frame failed.";
+      continue;
     }
 
     int x1 = marker.x - half_size;
     int y1 = marker.y - half_size;
     FloatImage new_patch;
-    if (!CopyRegionFromQImage(image, 32, 32,
+    if (!CopyRegionFromQImage(image, size, size,
                               &x1, &y1,
                               &new_patch)) {
       // TODO(keir): Must handle this case! Currently no marker delete.
+      LG << "Copy from new frame failed.";
     }
 
     double xx0 = marker.x - x0;
@@ -320,7 +327,9 @@ void Tracker::seek(int frame) {
     if (region_tracker_->Track(old_patch, new_patch,
                                xx0, yy0,
                                &xx1, &yy1)) {
-      tracks_->Insert(frame, marker.track, xx1, yy1);
+      tracks_->Insert(frame, marker.track, x1 + xx1, y1 + yy1);
+      LG << "Tracked (" << xx0 << ", " << yy0 << ") to ("
+         << xx1 << ", " << yy1 << ").";
     } else {
       // TODO(keir): Must handle this case! Currently no marker delete.
     }

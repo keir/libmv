@@ -2,3 +2,6 @@
 bin-dbg
 bin-opt
 src/libmv/tools/revision.h
+Makefile
+build/
+*.pro.user

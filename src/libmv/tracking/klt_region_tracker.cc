@@ -18,6 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+#include "libmv/logging/logging.h"
 #include "libmv/tracking/klt_region_tracker.h"
 #include "libmv/image/image.h"
 #include "libmv/image/convolve.h"
@@ -109,6 +110,7 @@ bool KltRegionTracker::Track(const FloatImage &image1,
                                &dx, &dy)) {
       // The determinant, which indicates the trackiness of the point, is too
       // small, so fail out.
+      LG << "Determinant too small; failing tracking.";
       return false;
     }
 
@@ -118,10 +120,12 @@ bool KltRegionTracker::Track(const FloatImage &image1,
 
     // If the update is small, then we probably found the target.
     if (dx * dx + dy * dy < min_update_squared_distance) {
+      LG << "Successful track in " << i << " iterations.";
       return true;
     }
   }
   // Getting here means we hit max iterations, so tracking failed.
+  LG << "Too many iterations.";
   return false;
 }
 
