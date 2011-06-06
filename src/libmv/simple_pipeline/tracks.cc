@@ -52,7 +52,6 @@ Marker *Tracks::Insert(int image, int track, double x, double y) {
   markers_.back().x = x;
   markers_.back().y = y;
   LG << "Inserted marker track: " << markers_.back().track;
-  LG << "Inserted marker track #2: " << markers_[0].track;
 
   return &markers_.back();
 }
@@ -118,12 +117,9 @@ int Tracks::MaxImage() const {
 
 int Tracks::MaxTrack() const {
   int max_track = -1;
-  LG << "markers_.size() " << markers_.size();
   for (int i = 0; i < markers_.size(); ++i) {
-    LG << "markers_[i].track " << markers_[i].track;
     max_track = std::max(markers_[i].track, max_track);
   }
-  LG << "Max track: " << max_track;
   return max_track;
 }
 
