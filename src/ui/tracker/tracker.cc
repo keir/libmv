@@ -208,8 +208,10 @@ bool CopyRegionFromQImage(QImage image,
 
 libmv::RegionTracker *CreateRegionTracker() {
   libmv::KltRegionTracker *klt_region_tracker = new libmv::KltRegionTracker;
-  klt_region_tracker->half_window_size = 4;
-  return new libmv::PyramidRegionTracker(klt_region_tracker, 2);
+  klt_region_tracker->half_window_size = 6;
+  klt_region_tracker->max_iterations = 200;
+  return new libmv::PyramidRegionTracker(klt_region_tracker, 3);
+  //return new libmv::PyramidRegionTracker(new libmv::KltRegionTracker, 3);
 }
 
 // TODO(keir): Leaks clip and tracks.
@@ -313,7 +315,8 @@ void Tracker::seek(int frame) {
     //}
     // TODO(keir): For now this uses a fixed 32x32 region. What's needed is
     // an extension to use custom sized boxes around the tracked region.
-    int size = 64;
+    //int size = 65;  // There is some funny bug where size 65 doesn't work.
+    int size = 33;
     int half_size = size / 2;
 
     int x0 = marker.x - half_size;
