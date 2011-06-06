@@ -22,18 +22,32 @@
 #include <vector>
 
 #include "libmv/numeric/numeric.h"
+#include "libmv/simple_pipeline/tracks.h"
+
+using std::vector;
 
 namespace libmv {
 
-void Tracks::Insert(int image, int track, double x, double y) {
+Marker *Tracks::Insert(int image, int track, double x, double y) {
+  // TODO(keir): Wow, this is quadratic for repeated insertions. Fix this by
+  // adding a smarter data structure like a set<>.
+  for (int i = 0; i < markers_.size(); ++i) {
+    markers_[i].image;
+    if (markers_[i].image == image &&
+        markers_[i].track == track) {
+      markers_[i].x = x;
+      markers_[i].y = y;
+      return &markers_[i];
+    }
+  }
   Marker marker = { image, track, x, y };
   markers_.push_back(marker);
   return &markers_.back();
 }
 
-void Tracks::MarkersInBothImages(int image1,
-                                 int image2,
-                                 vector<Marker> *markers) {
+void Tracks::TracksInBothImages(int image1,
+                                int image2,
+                                vector<Marker> *markers) {
   vector<int> image1_tracks;
   vector<int> image2_tracks;
 
@@ -85,15 +99,15 @@ void Tracks::ImagesWithTrack(int track, vector<Marker> *markers) {
 int Tracks::MaxImage() const {
   int max_image = -1;
   for (int i = 0; i < markers_.size(); ++i) {
-    max_image = max(markers_[i].image, max_image);
+    max_image = std::max(markers_[i].image, max_image);
   }
   return max_image;
 }
 
-int Tracks::MaxImage() const {
+int Tracks::MaxTrack() const {
   int max_track = -1;
   for (int i = 0; i < markers_.size(); ++i) {
-    max_track = max(markers_[i].track, max_track);
+    max_track = std::max(markers_[i].track, max_track);
   }
   return max_track;
 }

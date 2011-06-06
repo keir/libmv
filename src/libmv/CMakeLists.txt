@@ -9,6 +9,7 @@ ADD_SUBDIRECTORY(numeric)
 ADD_SUBDIRECTORY(optimize)
 ADD_SUBDIRECTORY(reconstruction)
 ADD_SUBDIRECTORY(scene_graph)
+ADD_SUBDIRECTORY(simple_pipeline)
 ADD_SUBDIRECTORY(tools)
 ADD_SUBDIRECTORY(tracking)
 

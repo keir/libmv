@@ -34,14 +34,14 @@ struct Marker {
 class Tracks {
  public:
   Marker *Insert(int image, int track, double x, double y);
-  void TracksInBothImages(int image1, int image2, vector<Marker> *markers);
-  void TracksInImage(int image, vector<Marker> *markers);
-  void ImagesWithTrack(int track, vector<Marker> *markers);
+  void TracksInBothImages(int image1, int image2, std::vector<Marker> *markers);
+  void TracksInImage(int image, std::vector<Marker> *markers);
+  void ImagesWithTrack(int track, std::vector<Marker> *markers);
   int MaxImage() const;
   int MaxTrack() const;
 
  private:
-  vector<Marker> markers_;
+  std::vector<Marker> markers_;
 };
 
 }  // namespace libmv

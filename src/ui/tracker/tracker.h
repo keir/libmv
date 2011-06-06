@@ -10,7 +10,12 @@
 #include <QGraphicsView>
 #include <QTimer>
 #include <QCache>
-#include "klt.h"
+
+class Clip;
+namespace libmv {
+class Tracks;
+class RegionTracker;
+}  // namespace libmv
 
 class Tracker : public QMainWindow {
     Q_OBJECT
@@ -39,10 +44,10 @@ private:
     QGraphicsPixmapItem* pixmap;
     QVector<QGraphicsPathItem*> tracks;
     QTimer playTimer;
-    QList<QString> images;
-    int current;
-
-    libmv::KLT* klt;
-    QCache<int,libmv::ImagePyramid> pyramids;
+    int current_;
+    Clip *clip_;
+    libmv::Tracks *tracks_;
+    libmv::RegionTracker *region_tracker_;
+    QImage current_image_;
 };
 #endif
