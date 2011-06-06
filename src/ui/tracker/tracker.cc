@@ -208,10 +208,9 @@ bool CopyRegionFromQImage(QImage image,
 
 libmv::RegionTracker *CreateRegionTracker() {
   libmv::KltRegionTracker *klt_region_tracker = new libmv::KltRegionTracker;
-  klt_region_tracker->half_window_size = 6;
+  klt_region_tracker->half_window_size = 5;
   klt_region_tracker->max_iterations = 200;
   return new libmv::PyramidRegionTracker(klt_region_tracker, 3);
-  //return new libmv::PyramidRegionTracker(new libmv::KltRegionTracker, 3);
 }
 
 // TODO(keir): Leaks clip and tracks.
@@ -315,26 +314,29 @@ void Tracker::seek(int frame) {
     //}
     // TODO(keir): For now this uses a fixed 32x32 region. What's needed is
     // an extension to use custom sized boxes around the tracked region.
-    //int size = 65;  // There is some funny bug where size 65 doesn't work.
-    int size = 33;
+    int size = 128;
     int half_size = size / 2;
 
+    // [xy][01] is the upper right box corner.
     int x0 = marker.x - half_size;
     int y0 = marker.y - half_size;
     FloatImage old_patch;
-    if (!CopyRegionFromQImage(current_image_, 32, 32,
+    if (!CopyRegionFromQImage(current_image_, size, size,
                               &x0, &y0,
                               &old_patch)) {
       // TODO(keir): Must handle this case! Currently no marker delete.
+      LG << "Copy from old frame failed.";
+      continue;
     }
 
     int x1 = marker.x - half_size;
     int y1 = marker.y - half_size;
     FloatImage new_patch;
-    if (!CopyRegionFromQImage(image, 32, 32,
+    if (!CopyRegionFromQImage(image, size, size,
                               &x1, &y1,
                               &new_patch)) {
       // TODO(keir): Must handle this case! Currently no marker delete.
+      LG << "Copy from new frame failed.";
     }
 
     double xx0 = marker.x - x0;
