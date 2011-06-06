@@ -26,17 +26,6 @@ int main(int argc, char *argv[]) {
   return app.exec();
 }
 
-// Minimal scope profiling tool.
-struct Profile {
-  QTime time;
-  Profile(const char* msg,const char* file,const int line) {
-    fprintf(stderr,"%s:%d: %s... ",file,line,msg); fflush(stderr);
-    time.start();
-  }
-  ~Profile() { fprintf(stderr,"%d ms\n",time.elapsed()); fflush(stderr); }
-#define profile(msg) Profile p(msg,__FILE__, __LINE__)
-};
-
 // Only supports bags-of-files type movies for now; use QMovie later.
 // TODO(keir): This doesn't belong in the header.
 class Clip {
@@ -220,7 +209,7 @@ void Tracker::seek(int frame) {
   // from the previous frame into this one.
   vector<Marker> marker_in_previous_frame;
   tracks_->TracksInImage(current_, &marker_in_previous_frame);
-  for (int i = 0; i < marker_in_previous_frame.size(); ++i) {
+  for (size_t i = 0; i < marker_in_previous_frame.size(); ++i) {
     const Marker &marker = marker_in_previous_frame[i];
     //if (active_tracks_.find(marker.track) == active_tracks_.end()) {
     //  continue
@@ -274,7 +263,7 @@ void Tracker::previous() {
   seek(current_ - 1);
 }
 void Tracker::next() {
-  seek(current_ - 1);
+  seek(current_ + 1);
 }
 void Tracker::last() {
   seek(clip_->size() - 1);

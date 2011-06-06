@@ -63,6 +63,36 @@ void ComputeGaussianKernel(double sigma, Vec *kernel, Vec *derivative) {
 }
 
 template <int size, bool vertical>
+void FastConvolve(const Vec &kernel, int width, int height,
+                  const float* src, int src_stride, int src_line_stride,
+                  float* dst, int dst_stride) {
+  double coefficients[2 * size + 1];
+  for (int k = 0; k < 2 * size + 1; ++k) {
+    coefficients[k] = kernel(2 * size - k);
+  }
+  // Fast path: if the kernel has a certain size, use the constant sized loops.
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      double sum = 0;
+      for (int k = -size; k <= size; ++k) {
+        if (vertical) {
+          if (y + k >= 0 && y + k < height) {
+            sum += src[k * src_line_stride] * coefficients[k + size];
+          }
+        } else {
+          if (x + k >= 0 && x + k < width) {
+            sum += src[k * src_stride] * coefficients[k + size];
+          }
+        }
+      }
+      dst[0] = static_cast<float>(sum);
+      src += src_stride;
+      dst += dst_stride;
+    }
+  }
+}
+
+template<bool vertical>
 void Convolve(const Array3Df &in,
               const Vec &kernel,
               Array3Df *out_pointer,
@@ -82,76 +112,62 @@ void Convolve(const Array3Df &in,
   int src_stride = in.Stride(1);
   int dst_stride = out.Stride(1);
   const float* src = in.Data();
-  float* dst = out.Data();
+  float* dst = out.Data()+plane;
 
-  // Fast path: if the kernel has a certain size, use the constant sized loops.
-  if (kernel.size() == 2 * size + 1) {
-    double coefficients[2 * size + 1];
-    for (int k = 0; k < 2 * size + 1; ++k) {
-      coefficients[k] = kernel(2 * size - k);
-    }
-    for (int y = 0; y < height; ++y) {
-      for (int x = 0; x < width; ++x) {
-        double sum = 0;
-        for (int k = -size; k <= size; ++k) {
-          if (vertical) {
-            if (y + k >= 0 && y + k < height) {
-              sum += src[k * src_line_stride] * coefficients[k + size];
-            }
-          } else {
-            if (x + k >= 0 && x + k < width) {
-              sum += src[k * src_stride] * coefficients[k + size];
-            }
-          }
-        }
-        dst[plane] = static_cast<float>(sum);
-        src += src_stride;
-        dst += dst_stride;
-      }
-    }
-  } else {
-    int dynamic_size = kernel.size() / 2;
-    for (int y = 0; y < height; ++y) {
-      for (int x = 0; x < width; ++x) {
-        double sum = 0;
-        // Slow path: this loop cannot be unrolled.
-        for (int k = -dynamic_size; k <= dynamic_size; ++k) {
-          if(vertical) {
-            if (y + k >= 0 && y + k < height) {
-              sum += src[k * src_line_stride] * kernel(2 * size - (k + dynamic_size));
-            }
-          } else {
-            if (x + k >= 0 && x + k < width) {
-              sum += src[k * src_stride] * kernel(2 * size - (k + dynamic_size));
-            }
-          }
-        }
-        dst[plane] = static_cast<float>(sum);
-        src += src_stride;
-        dst += dst_stride;
-      }
-    }
-  }
-}
-
-template<bool vertical>
-void ConvolveRuntimeSized(const Array3Df &in,
-                          const Vec &kernel,
-                          Array3Df *out_pointer,
-                          int plane) {
   // Use a dispatch table to make most convolutions used in practice use the
   // fast path.
   int half_width = kernel.size() / 2;
   switch (half_width) {
+    case 1:
+      FastConvolve<1, vertical>(kernel, width, height, src, src_stride,
+                                src_line_stride, dst, dst_stride);
+      break;
+    case 2:
+      FastConvolve<2, vertical>(kernel, width, height, src, src_stride,
+                                src_line_stride, dst, dst_stride);
+      break;
+    case 3:
+      FastConvolve<3, vertical>(kernel, width, height, src, src_stride,
+                                src_line_stride, dst, dst_stride);
+      break;
+    case 4:
+      FastConvolve<4, vertical>(kernel, width, height, src, src_stride,
+                                src_line_stride, dst, dst_stride);
+      break;
+    case 5:
+      FastConvolve<5, vertical>(kernel, width, height, src, src_stride,
+                                src_line_stride, dst, dst_stride);
+      break;
+    case 6:
+      FastConvolve<6, vertical>(kernel, width, height, src, src_stride,
+                                src_line_stride, dst, dst_stride);
+      break;
+    case 7:
+      FastConvolve<7, vertical>(kernel, width, height, src, src_stride,
+                                src_line_stride, dst, dst_stride);
+      break;
     default:
-    case 1: Convolve<1, vertical>(in, kernel, out_pointer, plane); break;
-    case 2: Convolve<2, vertical>(in, kernel, out_pointer, plane); break;
-    case 3: Convolve<3, vertical>(in, kernel, out_pointer, plane); break;
-    case 4: Convolve<4, vertical>(in, kernel, out_pointer, plane); break;
-    case 5: Convolve<5, vertical>(in, kernel, out_pointer, plane); break;
-    case 6: Convolve<6, vertical>(in, kernel, out_pointer, plane); break;
-    case 7: Convolve<7, vertical>(in, kernel, out_pointer, plane); break;
-    case 8: Convolve<8, vertical>(in, kernel, out_pointer, plane); break;
+      int dynamic_size = kernel.size() / 2;
+      for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+          double sum = 0;
+          // Slow path: this loop cannot be unrolled.
+          for (int k = -dynamic_size; k <= dynamic_size; ++k) {
+            if(vertical) {
+              if (y + k >= 0 && y + k < height) {
+                sum += src[k * src_line_stride] * kernel(2 * dynamic_size - (k + dynamic_size));
+              }
+            } else {
+              if (x + k >= 0 && x + k < width) {
+                sum += src[k * src_stride] * kernel(2 * dynamic_size - (k + dynamic_size));
+              }
+            }
+          }
+          dst[0] = static_cast<float>(sum);
+          src += src_stride;
+          dst += dst_stride;
+        }
+      }
   }
 }
 
@@ -159,14 +175,14 @@ void ConvolveHorizontal(const Array3Df &in,
                         const Vec &kernel,
                         Array3Df *out_pointer,
                         int plane) {
-  ConvolveRuntimeSized<false>(in, kernel, out_pointer, plane);
+  Convolve<false>(in, kernel, out_pointer, plane);
 }
 
 void ConvolveVertical(const Array3Df &in,
                       const Vec &kernel,
                       Array3Df *out_pointer,
                       int plane) {
-  ConvolveRuntimeSized<true>(in, kernel, out_pointer, plane);
+  Convolve<true>(in, kernel, out_pointer, plane);
 }
 
 void ConvolveGaussian(const Array3Df &in,
