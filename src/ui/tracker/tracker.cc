@@ -16,17 +16,12 @@
 #include <QFileDialog>
 #include <QGraphicsPixmapItem>
 #include <QGraphicsSceneMouseEvent>
+#include <QDockWidget>
 #include <QString>
 #include <QStyle>
 #include <QTime>
 #include <QCache>
 #include <QSettings>
-
-using libmv::FloatImage;
-using libmv::Marker;
-using std::vector;
-using std::pair;
-using std::make_pair;
 
 int main(int argc, char *argv[]) {
   libmv::Init("", &argc, &argv);
@@ -36,12 +31,22 @@ int main(int argc, char *argv[]) {
   return app.exec();
 }
 
+class TrackItem : public QGraphicsRectItem {
+public:
+  static const int size = 64;
+  TrackItem() : QGraphicsRectItem(-size/2,-size/2,size/2,size/2) {
+    setPen(QPen(QBrush(Qt::green), 3));
+    setFlags(QGraphicsItem::ItemIsSelectable|QGraphicsItem::ItemIsMovable);
+  }
+  bool hidden;
+};
+
 class TrackerScene : public QGraphicsScene {
   // Only add Q_OBJECT when there are slots.
  public:
   TrackerScene(libmv::Tracks *tracks) : tracks_(tracks) {}
   ~TrackerScene() {
-    foreach(QGraphicsItem* item, markers_) {
+    foreach(TrackItem* item, trackItems_) {
       removeItem(item);
       delete item;
     }
@@ -50,32 +55,32 @@ class TrackerScene : public QGraphicsScene {
   void SetFrame(int frame) {
     LG << "Setting frame to " << frame;
 
-    foreach (QGraphicsItem* item, markers_) {
-      item->hide();
-    }
-
-    vector<Marker> markers;
+    std::vector<libmv::Marker> markers;
     tracks_->TracksInImage(frame, &markers);
     LG << "Got " << markers.size() << " markers.";
 
-    const int half_size = 32;
-    foreach (const Marker &marker, markers) {
-      pair<int, int> key = make_pair(marker.image, marker.track);
-      QGraphicsItem*& item = markers_[key];
-      if (!item) {
-        item = markers_[key] = addRect(marker.x - half_size,
-                                       marker.y - half_size,
-                                       2 * half_size,
-                                       2 * half_size,
-                                       QPen(QBrush(Qt::green), 3));
+    // TODO(MatthiasF): would be much simpler if libmv API returned all tracks
+    // and flag hidden tracks
+    foreach(TrackItem* item, trackItems_) item->hidden=true;
+    foreach (const libmv::Marker &marker, markers) {
+      TrackItem* item = trackItems_[marker.track];
+      item->setPos(marker.x,marker.y);
+      item->hidden=false;
+    }
+    foreach(TrackItem* item, trackItems_) {
+      if(item->hidden) {
+        item->hide();
+      } else {
+        item->show();
       }
-      item->show();
     }
     current_frame_ = frame;
   }
 
  protected:
   void mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
+    QGraphicsScene::mousePressEvent(mouseEvent);
+    if (mouseEvent->isAccepted()) return;
     LG << "Got mouse click at " << mouseEvent->scenePos().x()
        << ", " << mouseEvent->scenePos().y();
 
@@ -84,6 +89,9 @@ class TrackerScene : public QGraphicsScene {
     }
 
     int new_track = tracks_->MaxTrack() + 1;
+    TrackItem* item = new TrackItem();
+    trackItems_ << item;
+    addItem(item);
     LG << "Inserting new marker for frame " << current_frame_
        << " track " << new_track
        << " with x=" << mouseEvent->scenePos().x()
@@ -96,7 +104,7 @@ class TrackerScene : public QGraphicsScene {
   }
 
  private:
-  QMap<pair<int, int>, QGraphicsItem *> markers_;
+  QVector<TrackItem*> trackItems_;
   libmv::Tracks *tracks_;
   int current_frame_;
 };
@@ -201,50 +209,66 @@ libmv::RegionTracker *CreateRegionTracker() {
   return new libmv::RetrackRegionTracker(pyramid_region_tracker, 0.2);
 }
 
+class View : public QGraphicsView {
+public:
+  View(QGraphicsScene* scene) {
+    setScene(scene);
+    setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
+    setFrameShape(QFrame::NoFrame);
+    setDragMode(QGraphicsView::ScrollHandDrag);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  }
+};
+
 Tracker::Tracker()
   : clip_(new Clip),
     tracks_(new libmv::Tracks()),
     region_tracker_(CreateRegionTracker()),
     scene(new TrackerScene(tracks_.data())),
+    view(new View(scene.data())),
+    zoomView(new View(scene.data())),
     current_(-1) {
   setWindowTitle("LibMV Simple Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
+  connect(&playTimer, SIGNAL(timeout()), SLOT(next()));
+
+  detailDock = new QDockWidget("Selected Track Details");
+  detailDock->setObjectName("detailDock");
+  addDockWidget(Qt::TopDockWidgetArea,detailDock);
+  zoomView->setMinimumSize(2*TrackItem::size,2*TrackItem::size);
+  detailDock->setWidget(zoomView);
+  detailDock->hide();
 
   // Create the toolbar.
-  QToolBar* tool_bar = addToolBar("Main Toolbar");
-  tool_bar->setObjectName("mainToolbar");
-  tool_bar->addAction(QIcon::fromTheme("document-open"), "Open...",
+  QToolBar* toolbar = addToolBar("Main Toolbar");
+  toolbar->setObjectName("mainToolbar");
+  toolbar->addAction(QIcon::fromTheme("document-open"), "Open...",
                      this, SLOT(open()));
-  tool_bar->addAction(QIcon::fromTheme("media-skip-backward"), "First Frame",
+  toolbar->addAction(QIcon::fromTheme("media-skip-backward"), "First Frame",
                      this, SLOT(first()));
-  tool_bar->addAction(QIcon::fromTheme("media-seek-backward"),"Previous Frame",
+  toolbar->addAction(QIcon::fromTheme("media-seek-backward"),"Previous Frame",
                      this, SLOT(previous()))->setShortcut(QKeySequence("Left"));
-  tool_bar->addWidget(&frameNumber);
+  toolbar->addWidget(&frameNumber);
   connect(&frameNumber, SIGNAL(valueChanged(int)), SLOT(seek(int)));
-  playAction = tool_bar->addAction(QIcon::fromTheme("media-playback-start"),
+  playAction = toolbar->addAction(QIcon::fromTheme("media-playback-start"),
                                   QKeySequence("Play"));
   playAction->setCheckable(true);
   playAction->setShortcut(QKeySequence("Space"));
   connect(playAction, SIGNAL(triggered(bool)), SLOT(togglePlay(bool)));
-  tool_bar->addWidget(&slider);
+  toolbar->addWidget(&slider);
   slider.setOrientation(Qt::Horizontal);
   slider.style()->styleHint(QStyle::SH_Slider_AbsoluteSetButtons);
   connect(&slider, SIGNAL(sliderMoved(int)), SLOT(seek(int)));
-  tool_bar->addAction(QIcon::fromTheme("media-seek-forward"), "Next Frame",
+  toolbar->addAction(QIcon::fromTheme("media-seek-forward"), "Next Frame",
                      this, SLOT(next()))
-          ->setShortcut(QKeySequence("Right"));
-  tool_bar->addAction(QIcon::fromTheme("media-skip-forward"), "Last Frame",
+      ->setShortcut(QKeySequence("Right"));
+  toolbar->addAction(QIcon::fromTheme("media-skip-forward"), "Last Frame",
                      this, SLOT(last()));
 
-  // Set up the scene.
-  view.setScene(scene.data());
-  view.setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
-  view.setFrameShape(QFrame::NoFrame);
-  view.setDragMode(QGraphicsView::ScrollHandDrag);
-  view.setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  view.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  setCentralWidget(&view);
-  connect(&playTimer, SIGNAL(timeout()), SLOT(next()));
+
+  setCentralWidget(view);
+  connect(scene.data(),SIGNAL(selectionChanged()),SLOT(selectMarker()));
 
   restoreGeometry(QSettings().value("geometry").toByteArray());
   restoreState(QSettings().value("windowState").toByteArray());
@@ -293,8 +317,8 @@ void Tracker::seek(int frame) {
   QImage image = clip_->Frame(frame);
   if (!pixmap) {
     pixmap = scene->addPixmap(QPixmap::fromImage(image));
-    view.setMinimumSize(image.size()/2);
-    view.fitInView(pixmap,Qt::KeepAspectRatio);
+    view->setMinimumSize(image.size()/2);
+    view->fitInView(pixmap,Qt::KeepAspectRatio);
   } else {
     pixmap->setPixmap(QPixmap::fromImage(image));
   }
@@ -302,35 +326,33 @@ void Tracker::seek(int frame) {
   // If the shift is between consecutive frames, track the active trackers
   // from the previous frame into this one.
   if(frame == current_+1) {
-    vector<Marker> marker_in_previous_frame;
+    std::vector<libmv::Marker> marker_in_previous_frame;
     tracks_->TracksInImage(current_, &marker_in_previous_frame);
-    foreach (const Marker &marker, marker_in_previous_frame) {
+    foreach (const libmv::Marker &marker, marker_in_previous_frame) {
       //if (active_tracks_.find(marker.track) == active_tracks_.end()) {
       //  continue
       //}
+      // TODO(keir): For now this uses a fixed 32x32 region. What's needed is
+      // an extension to use custom sized boxes around the tracked region.
       int size = 64;
       int half_size = size / 2;
 
       // [xy][01] is the upper right box corner.
       int x0 = marker.x - half_size;
       int y0 = marker.y - half_size;
-      FloatImage old_patch;
+      libmv::FloatImage old_patch;
       if (!CopyRegionFromQImage(clip_->Frame(current_), size, size,
                                 &x0, &y0,
                                 &old_patch)) {
-        // TODO(keir): Must handle this case! Currently no marker delete.
-        LG << "Copy from old frame failed.";
         continue;
       }
 
       int x1 = marker.x - half_size;
       int y1 = marker.y - half_size;
-      FloatImage new_patch;
+      libmv::FloatImage new_patch;
       if (!CopyRegionFromQImage(clip_->Frame(frame), size, size,
                                 &x1, &y1,
                                 &new_patch)) {
-        // TODO(keir): Must handle this case! Currently no marker delete.
-        LG << "Copy from new frame failed.";
         continue;
       }
 
@@ -344,8 +366,6 @@ void Tracker::seek(int frame) {
         tracks_->Insert(frame, marker.track, x1 + xx1, y1 + yy1);
         LG << "Tracked (" << xx0 << ", " << yy0 << ") to ("
            << xx1 << ", " << yy1 << ").";
-      } else {
-        // TODO(keir): Must handle this case! Currently no marker delete.
       }
     }
   }
@@ -354,8 +374,11 @@ void Tracker::seek(int frame) {
   slider.setValue(frame);
   frameNumber.setValue(frame);
 
-  // Now updated the view.
+  // Update the view.
   scene->SetFrame(frame);
+  if(!scene->selectedItems().isEmpty()) {
+    zoomView->fitInView(scene->selectedItems().first(),Qt::KeepAspectRatio);
+  }
 }
 
 void Tracker::first() {
@@ -387,6 +410,14 @@ void Tracker::togglePlay(bool play) {
   }
 }
 
+void Tracker::selectMarker() {
+  if(scene->selectedItems().isEmpty()) detailDock->hide();
+  else {
+    detailDock->show();
+    zoomView->fitInView(scene->selectedItems().first(),Qt::KeepAspectRatio);
+  }
+}
+
 void Tracker::resizeEvent(QResizeEvent *) {
-  view.fitInView(pixmap,Qt::KeepAspectRatio);
+  view->fitInView(pixmap,Qt::KeepAspectRatio);
 }

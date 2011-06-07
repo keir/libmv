@@ -13,6 +13,7 @@
 
 class Clip;
 class TrackerScene;
+class View;
 namespace libmv {
 class Tracks;
 class RegionTracker;
@@ -34,6 +35,7 @@ class Tracker : public QMainWindow {
   void togglePlay(bool);
   void start();
   void stop();
+  void selectMarker();
 
  protected:
   void resizeEvent(QResizeEvent *);
@@ -42,21 +44,24 @@ class Tracker : public QMainWindow {
   void open(QStringList);
 
 // TODO(MatthiasF): separate concerns
-// Tracking
+// Data
   QScopedPointer<Clip> clip_;
   QScopedPointer<libmv::Tracks> tracks_;
   QScopedPointer<libmv::RegionTracker> region_tracker_;
 
-// UI
-  QSpinBox frameNumber;
-  QAction* playAction;
-  QSlider slider;
-  QGraphicsView view;
+// Model
   QScopedPointer<TrackerScene> scene;
   QGraphicsPixmapItem* pixmap;
   QVector<QGraphicsPathItem*> tracks;
+
+// View
+  QSpinBox frameNumber;
+  QAction* playAction;
+  QSlider slider;
+  QDockWidget* detailDock;
+  View* view;
+  View* zoomView;
   QTimer playTimer;
   int current_;
-
 };
 #endif
