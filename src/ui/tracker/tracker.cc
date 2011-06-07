@@ -35,11 +35,6 @@ int main(int argc, char *argv[]) {
   return app.exec();
 }
 
-template<typename Container, typename Key>
-bool ContainsKey(const Container &container, const Key &key) {
-  return container.find(key) != container.end();
-}
-
 class TrackerScene : public QGraphicsScene {
   // Only add Q_OBJECT when there are slots.
  public:
@@ -65,15 +60,13 @@ class TrackerScene : public QGraphicsScene {
     const int half_size = 32;
     foreach (const Marker &marker, markers) {
       pair<int, int> key = make_pair(marker.image, marker.track);
-      QGraphicsItem *item = NULL;
-      if (!ContainsKey(markers_, key)) {
+      QGraphicsItem*& item = markers_[key];
+      if (!item) {
         item = markers_[key] = addRect(marker.x - half_size,
                                        marker.y - half_size,
                                        2 * half_size,
                                        2 * half_size,
                                        QPen(QBrush(Qt::green), 3));
-      } else {
-        item = markers_[key];
       }
       item->show();
     }
@@ -229,10 +222,11 @@ libmv::RegionTracker *CreateRegionTracker() {
 }
 
 Tracker::Tracker()
-    : current_(-1),
-      clip_(new Clip),
-      tracks_(new libmv::Tracks),
-      region_tracker_(CreateRegionTracker()) {
+  : clip_(new Clip),
+    tracks_(new libmv::Tracks()),
+    region_tracker_(CreateRegionTracker()),
+    scene(new TrackerScene(tracks_.data())),
+    current_(-1) {
   setWindowTitle("LibMV Simple Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
 
@@ -263,8 +257,7 @@ Tracker::Tracker()
                      this, SLOT(last()));
 
   // Set up the scene.
-  scene = new TrackerScene(tracks_);
-  view.setScene(scene);
+  view.setScene(scene.data());
   view.setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
   view.setFrameShape(QFrame::NoFrame);
   view.setDragMode(QGraphicsView::ScrollHandDrag);
@@ -281,11 +274,7 @@ Tracker::Tracker()
     open(args);
   }
 }
-
-Tracker::~Tracker() {
-  delete tracks_;
-  delete scene;
-}
+Tracker::~Tracker() {}
 
 void Tracker::open() {
   open(QFileDialog::getOpenFileNames(

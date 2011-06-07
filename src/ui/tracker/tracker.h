@@ -41,18 +41,23 @@ class Tracker : public QMainWindow {
  private:
   void open(QStringList);
 
+// TODO(MatthiasF): separate concerns
+// Tracking
+  QScopedPointer<Clip> clip_;
+  QScopedPointer<libmv::Tracks> tracks_;
+  QScopedPointer<libmv::RegionTracker> region_tracker_;
+  QImage current_image_;
+
+// UI
   QSpinBox frameNumber;
   QAction* playAction;
   QSlider slider;
   QGraphicsView view;
-  TrackerScene *scene;
+  QScopedPointer<TrackerScene> scene;
   QGraphicsPixmapItem* pixmap;
   QVector<QGraphicsPathItem*> tracks;
   QTimer playTimer;
   int current_;
-  Clip *clip_;
-  libmv::Tracks *tracks_;
-  libmv::RegionTracker *region_tracker_;
-  QImage current_image_;
+
 };
 #endif
