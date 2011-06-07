@@ -38,7 +38,6 @@ public:
     setPen(QPen(QBrush(Qt::green), 3));
     setFlags(QGraphicsItem::ItemIsSelectable|QGraphicsItem::ItemIsMovable);
   }
-  bool hidden;
 };
 
 class TrackerScene : public QGraphicsScene {
@@ -58,20 +57,22 @@ class TrackerScene : public QGraphicsScene {
     std::vector<libmv::Marker> markers;
     tracks_->TracksInImage(frame, &markers);
     LG << "Got " << markers.size() << " markers.";
-
-    // TODO(MatthiasF): would be much simpler if libmv API returned all tracks
-    // and flag hidden tracks
-    foreach(TrackItem* item, trackItems_) item->hidden=true;
+    QSet<int> visibleTracks;
     foreach (const libmv::Marker &marker, markers) {
-      TrackItem* item = trackItems_[marker.track];
+      visibleTracks << marker.track; //create visible set to find hidden tracks
+      TrackItem*& item = trackItems_[marker.track];
+      if(!item) {
+        item = new TrackItem();
+        addItem(item);
+      }
       item->setPos(marker.x,marker.y);
-      item->hidden=false;
     }
-    foreach(TrackItem* item, trackItems_) {
-      if(item->hidden) {
-        item->hide();
-      } else {
-        item->show();
+    for(QMutableMapIterator<int, TrackItem*> i(trackItems_);i.hasNext();) {
+      i.next();
+      if(!visibleTracks.contains(i.key())) {
+        removeItem(i.value());
+        delete i.value();
+        i.remove();
       }
     }
     current_frame_ = frame;
@@ -89,9 +90,6 @@ class TrackerScene : public QGraphicsScene {
     }
 
     int new_track = tracks_->MaxTrack() + 1;
-    TrackItem* item = new TrackItem();
-    trackItems_ << item;
-    addItem(item);
     LG << "Inserting new marker for frame " << current_frame_
        << " track " << new_track
        << " with x=" << mouseEvent->scenePos().x()
@@ -104,7 +102,7 @@ class TrackerScene : public QGraphicsScene {
   }
 
  private:
-  QVector<TrackItem*> trackItems_;
+  QMap<int,TrackItem*> trackItems_;
   libmv::Tracks *tracks_;
   int current_frame_;
 };
