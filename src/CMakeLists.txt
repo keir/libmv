@@ -101,11 +101,11 @@ IF (APPLE)
   )
 ENDIF (APPLE)
 
-IF (UNIX)
-  INCLUDE_DIRECTORIES(
-    third_party/png
-    third_party/zlib)
-ENDIF (UNIX)
+#IF (UNIX)
+  #INCLUDE_DIRECTORIES(
+    #third_party/png
+    #third_party/zlib)
+#ENDIF (UNIX)
 
 INCLUDE(Documentation)
 INCLUDE(Installation)

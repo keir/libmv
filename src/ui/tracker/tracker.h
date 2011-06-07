@@ -23,6 +23,7 @@ class Tracker : public QMainWindow {
  public:
   Tracker();
   ~Tracker();
+
  public slots:
   void open();
   void seek(int);
@@ -33,8 +34,10 @@ class Tracker : public QMainWindow {
   void togglePlay(bool);
   void start();
   void stop();
+
  protected:
   void resizeEvent(QResizeEvent *);
+
  private:
   void open(QStringList);
 

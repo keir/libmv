@@ -8,13 +8,18 @@
 #include "libmv/image/image.h"
 #include "libmv/tracking/klt_region_tracker.h"
 #include "libmv/tracking/pyramid_region_tracker.h"
+#include "libmv/tracking/retrack_region_tracker.h"
 
-#include <QGraphicsSceneMouseEvent>
-#include <QFileDialog>
-#include <QDesktopWidget>
-#include <QGraphicsPixmapItem>
-#include <QTime>
 #include <QDebug>
+#include <QDesktopWidget>
+#include <QImageReader>
+#include <QFileDialog>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsSceneMouseEvent>
+#include <QString>
+#include <QStyle>
+#include <QTime>
+#include <QCache>
 
 using libmv::FloatImage;
 using libmv::Marker;
@@ -30,30 +35,46 @@ int main(int argc, char *argv[]) {
   return app.exec();
 }
 
+template<typename Container, typename Key>
+bool ContainsKey(const Container &container, const Key &key) {
+  return container.find(key) != container.end();
+}
+
 class TrackerScene : public QGraphicsScene {
   // Only add Q_OBJECT when there are slots.
  public:
   TrackerScene(libmv::Tracks *tracks) : tracks_(tracks) {}
   ~TrackerScene() {
-    foreach(QGraphicsItem* item, markers_) { removeItem(item); delete item; }
+    foreach(QGraphicsItem* item, markers_) {
+      removeItem(item);
+      delete item;
+    }
   }
 
   void SetFrame(int frame) {
     LG << "Setting frame to " << frame;
 
-    foreach(QGraphicsItem* item, markers_) item->hide();
+    foreach (QGraphicsItem* item, markers_) {
+      item->hide();
+    }
 
     vector<Marker> markers;
     tracks_->TracksInImage(frame, &markers);
     LG << "Got " << markers.size() << " markers.";
 
     const int half_size = 32;
-    foreach(const Marker& marker, markers) {
+    foreach (const Marker &marker, markers) {
       pair<int, int> key = make_pair(marker.image, marker.track);
-      QGraphicsItem*& item = markers_[key];
-      if (!item) item = addRect(marker.x - half_size, marker.y - half_size,
-                                2 * half_size, 2 * half_size,
-                                QPen(QBrush(Qt::green),3));
+      QGraphicsItem *item = NULL;
+      if (!ContainsKey(markers_, key)) {
+        item = markers_[key] = addRect(marker.x - half_size,
+                                       marker.y - half_size,
+                                       2 * half_size,
+                                       2 * half_size,
+                                       QPen(QBrush(Qt::green), 3));
+      } else {
+        item = markers_[key];
+      }
       item->show();
     }
     current_frame_ = frame;
@@ -86,27 +107,34 @@ class TrackerScene : public QGraphicsScene {
   int current_frame_;
 };
 
-// Only supports bags-of-files type movies
 class Clip {
  public:
-  Clip() {}
-  Clip(QStringList paths) {
+  Clip() : image_reader_(NULL) {}
+  Clip(QStringList paths) : image_reader_(NULL) {
     Open(paths);
   }
 
   void Open(QStringList paths) {
+    cache_.setMaxCost(512 * 1024 * 1024);
     if (paths.isEmpty()) {
       return;
     }
+    if (paths.size() == 1 && paths[0].endsWith(".avi")) {
+      // TODO(keir): Video loading is broken; it segfaults.
+      LG << "Loading video file: " << paths[0].toStdString();
+      image_reader_.reset(new QImageReader(paths[0]));
+      return;
+    }
+
     image_filenames_.clear();
-    foreach(QString path, paths) {
+    foreach (QString path, paths) {
       if (QFileInfo(path).isFile()) {
         image_filenames_ << path;
       } else {
-        foreach(QString file,
-                QDir(path).entryList(QStringList("*.jpg") <<"*.png",
-                                     QDir::Files,
-                                     QDir::Name)) {
+        foreach (QString file,
+                 QDir(path).entryList(QStringList("*.jpg") << "*.png",
+                                      QDir::Files,
+                                      QDir::Name)) {
           image_filenames_ << QDir(path).filePath(file);
         }
       }
@@ -114,13 +142,35 @@ class Clip {
   }
 
   QImage Frame(int frame) {
-    return QImage(image_filenames_[frame]);
+    if (cache_.contains(frame)) {
+      LG << "Got cached frame " << frame;
+      return *cache_.take(frame);
+    }
+    LG << "Not cached; reading frame " << frame;
+    // Not in the cache.
+    QImage *image = new QImage;
+    if (image_reader_.get()) {
+      image_reader_->jumpToImage(frame);
+      *image = image_reader_->read();
+      if (image->isNull()) {
+        LG << "Error reading frame " << frame;
+        // Return the null image anyway.
+      }
+    } else {
+      *image = QImage(image_filenames_[frame]);
+    }
+    LG << "Caching frame using " << image->byteCount() << " bytes;"
+       << " cache has size " << cache_.count();
+    cache_.insert(frame, image, image->byteCount());
+    return *image;
   }
 
   int size() const { return image_filenames_.size(); }
 
  private:
   QList<QString> image_filenames_;
+  libmv::scoped_ptr<QImageReader> image_reader_;
+  QCache<int, QImage> cache_;
 };
 
 // Copy the region starting at *x0, *y0 with width w, h into region. If the
@@ -173,7 +223,9 @@ libmv::RegionTracker *CreateRegionTracker() {
   libmv::KltRegionTracker *klt_region_tracker = new libmv::KltRegionTracker;
   klt_region_tracker->half_window_size = 5;
   klt_region_tracker->max_iterations = 200;
-  return new libmv::PyramidRegionTracker(klt_region_tracker, 3);
+  libmv::PyramidRegionTracker *pyramid_region_tracker =
+      new libmv::PyramidRegionTracker(klt_region_tracker, 3);
+  return new libmv::RetrackRegionTracker(pyramid_region_tracker, 0.2);
 }
 
 Tracker::Tracker()
@@ -202,6 +254,7 @@ Tracker::Tracker()
   connect(playAction, SIGNAL(triggered(bool)), SLOT(togglePlay(bool)));
   tool_bar->addWidget(&slider);
   slider.setOrientation(Qt::Horizontal);
+  slider.style()->styleHint(QStyle::SH_Slider_AbsoluteSetButtons);
   connect(&slider, SIGNAL(sliderMoved(int)), SLOT(seek(int)));
   tool_bar->addAction(QIcon::fromTheme("media-seek-forward"), "Next Frame",
                      this, SLOT(next()))
@@ -274,7 +327,7 @@ void Tracker::seek(int frame) {
   // from the previous frame into this one.
   vector<Marker> marker_in_previous_frame;
   tracks_->TracksInImage(current_, &marker_in_previous_frame);
-  foreach(const Marker &marker, marker_in_previous_frame) {
+  foreach (const Marker &marker, marker_in_previous_frame) {
     //if (active_tracks_.find(marker.track) == active_tracks_.end()) {
     //  continue
     //}
@@ -301,6 +354,7 @@ void Tracker::seek(int frame) {
                               &new_patch)) {
       // TODO(keir): Must handle this case! Currently no marker delete.
       LG << "Copy from new frame failed.";
+      continue;
     }
 
     double xx0 = marker.x - x0;
