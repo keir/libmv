@@ -35,7 +35,7 @@ void FindKeyframes(const Tracks &tracks, vector<int> *keyframes) {
   int max_image = tracks.MaxImage();
   for (int i = 1; i < max_image; ++i) {
     vector<Marker> markers;
-    tracks.TracksInBothImages(last_keyframe, i, &markers);
+    tracks.MarkersForTracksInBothImages(last_keyframe, i, &markers);
     double fgric = ComputeFGRIC(markers);
     double hgric = ComputeHGRIC(markers);
     if (fgric < hgric) {
@@ -55,7 +55,7 @@ bool FindBestPairToInitializeFrom(const Tracks &tracks,
   for (int i = 0; i < images.size(); ++i) {
     for (int j = i; j < images.size(); ++j) {
       vector<Marker> markers;
-      tracks.TracksInBothImages(last_keyframe, i, &markers);
+      tracks.MarkersForTracksInBothImages(last_keyframe, i, &markers);
       double fgric = ComputeFGRIC(markers);
       double hgric = ComputeHGRIC(markers);
       if (fgric < 0 || hgric < 0 || fgric > hgric) {
@@ -143,7 +143,7 @@ bool Reconstruct(const Tracks &tracks, Reconstruction *reconstruction) {
   }
 
   vector<Marker> markers;
-  tracks.TracksInBothImages(image1, image2, &markers);
+  tracks.MarkersForTracksInBothImages(image1, image2, &markers);
   if (!ReconstructTwoFrames(markers, reconstruction)) {
     return false;
   }

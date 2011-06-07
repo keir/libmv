@@ -29,7 +29,7 @@ using std::vector;
 
 namespace libmv {
 
-Marker *Tracks::Insert(int image, int track, double x, double y) {
+void Tracks::Insert(int image, int track, double x, double y) {
   // TODO(keir): Wow, this is quadratic for repeated insertions. Fix this by
   // adding a smarter data structure like a set<>.
   for (int i = 0; i < markers_.size(); ++i) {
@@ -38,19 +38,15 @@ Marker *Tracks::Insert(int image, int track, double x, double y) {
       markers_[i].x = x;
       markers_[i].y = y;
       LG << "Overwriting marker " << i << " with track " << markers_[i].track;
-      return &markers_[i];
+      return;
     }
   }
   LG << "Making new marker " << track << " with track " << track;
   Marker marker = { x, y, image, track };
   markers_.push_back(marker);
-
-  LG << "Inserted marker track: " << markers_.back().track;
-
-  return &markers_.back();
 }
 
-void Tracks::TracksInBothImages(int image1,
+void Tracks::MarkersForTracksInBothImages(int image1,
                                 int image2,
                                 vector<Marker> *markers) {
   vector<int> image1_tracks;
@@ -83,7 +79,7 @@ void Tracks::TracksInBothImages(int image1,
   }
 }
 
-void Tracks::TracksInImage(int image, vector<Marker> *markers) {
+void Tracks::MarkersInImage(int image, vector<Marker> *markers) {
   markers->clear();
   for (int i = 0; i < markers_.size(); ++i) {
     if (image == markers_[i].image) {
@@ -92,7 +88,7 @@ void Tracks::TracksInImage(int image, vector<Marker> *markers) {
   }
 }
 
-void Tracks::ImagesWithTrack(int track, vector<Marker> *markers) {
+void Tracks::MarkersInTrack(int track, vector<Marker> *markers) {
   markers->clear();
   for (int i = 0; i < markers_.size(); ++i) {
     if (track == markers_[i].track) {

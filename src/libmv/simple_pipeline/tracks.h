@@ -33,10 +33,10 @@ struct Marker {
 
 class Tracks {
  public:
-  Marker *Insert(int image, int track, double x, double y);
-  void TracksInBothImages(int image1, int image2, std::vector<Marker> *markers);
-  void TracksInImage(int image, std::vector<Marker> *markers);
-  void ImagesWithTrack(int track, std::vector<Marker> *markers);
+  void Insert(int image, int track, double x, double y);
+  void MarkersForTracksInBothImages(int image1, int image2, std::vector<Marker> *markers);
+  void MarkersInImage(int image, std::vector<Marker> *markers);
+  void MarkersInTrack(int track, std::vector<Marker> *markers);
   int MaxImage() const;
   int MaxTrack() const;
 

@@ -14,6 +14,7 @@
 class Clip;
 class TrackerScene;
 class View;
+class TrackItem;
 namespace libmv {
 class Tracks;
 class RegionTracker;
@@ -35,7 +36,9 @@ class Tracker : public QMainWindow {
   void togglePlay(bool);
   void start();
   void stop();
+
   void selectMarker();
+  void moveMarker();
 
  protected:
   void resizeEvent(QResizeEvent *);
@@ -58,10 +61,10 @@ class Tracker : public QMainWindow {
   QSpinBox frameNumber;
   QAction* playAction;
   QSlider slider;
-  QDockWidget* detailDock;
   View* view;
   View* zoomView;
   QTimer playTimer;
-  int current_;
+  int currentFrame_;
+  TrackItem* currentItem_;
 };
 #endif
