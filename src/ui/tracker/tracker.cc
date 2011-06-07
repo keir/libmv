@@ -20,6 +20,7 @@
 #include <QStyle>
 #include <QTime>
 #include <QCache>
+#include <QSettings>
 
 using libmv::FloatImage;
 using libmv::Marker;
@@ -102,20 +103,13 @@ class TrackerScene : public QGraphicsScene {
 
 class Clip {
  public:
-  Clip() : image_reader_(NULL) {}
-  Clip(QStringList paths) : image_reader_(NULL) {
-    Open(paths);
-  }
-
   void Open(QStringList paths) {
-    cache_.setMaxCost(512 * 1024 * 1024);
+    cache_.setMaxCost(256 * 1024 * 1024);
     if (paths.isEmpty()) {
       return;
     }
     if (paths.size() == 1 && paths[0].endsWith(".avi")) {
-      // TODO(keir): Video loading is broken; it segfaults.
-      LG << "Loading video file: " << paths[0].toStdString();
-      image_reader_.reset(new QImageReader(paths[0]));
+      LG << "TODO(MatthiasF): load videos using ffmpeg";
       return;
     }
 
@@ -135,26 +129,13 @@ class Clip {
   }
 
   QImage Frame(int frame) {
-    if (cache_.contains(frame)) {
-      LG << "Got cached frame " << frame;
-      return *cache_.take(frame);
+    QImage* image = cache_[frame];
+    if (!image) {
+      image = new QImage(image_filenames_[frame]);
+      LG << "Caching frame using " << image->byteCount() << " bytes;"
+         << " cache has size " << cache_.count();
+      cache_.insert(frame, image, image->byteCount());
     }
-    LG << "Not cached; reading frame " << frame;
-    // Not in the cache.
-    QImage *image = new QImage;
-    if (image_reader_.get()) {
-      image_reader_->jumpToImage(frame);
-      *image = image_reader_->read();
-      if (image->isNull()) {
-        LG << "Error reading frame " << frame;
-        // Return the null image anyway.
-      }
-    } else {
-      *image = QImage(image_filenames_[frame]);
-    }
-    LG << "Caching frame using " << image->byteCount() << " bytes;"
-       << " cache has size " << cache_.count();
-    cache_.insert(frame, image, image->byteCount());
     return *image;
   }
 
@@ -162,7 +143,6 @@ class Clip {
 
  private:
   QList<QString> image_filenames_;
-  libmv::scoped_ptr<QImageReader> image_reader_;
   QCache<int, QImage> cache_;
 };
 
@@ -266,6 +246,9 @@ Tracker::Tracker()
   setCentralWidget(&view);
   connect(&playTimer, SIGNAL(timeout()), SLOT(next()));
 
+  restoreGeometry(QSettings().value("geometry").toByteArray());
+  restoreState(QSettings().value("windowState").toByteArray());
+
   QStringList args = qApp->arguments();
   args.removeFirst();
   if (args.isEmpty()) {
@@ -274,7 +257,10 @@ Tracker::Tracker()
     open(args);
   }
 }
-Tracker::~Tracker() {}
+Tracker::~Tracker() {
+  QSettings().setValue("geometry", saveGeometry());
+  QSettings().setValue("windowState", saveState());
+}
 
 void Tracker::open() {
   open(QFileDialog::getOpenFileNames(
@@ -307,6 +293,7 @@ void Tracker::seek(int frame) {
   QImage image = clip_->Frame(frame);
   if (!pixmap) {
     pixmap = scene->addPixmap(QPixmap::fromImage(image));
+    view.setMinimumSize(image.size()/2);
     view.fitInView(pixmap,Qt::KeepAspectRatio);
   } else {
     pixmap->setPixmap(QPixmap::fromImage(image));
@@ -314,55 +301,56 @@ void Tracker::seek(int frame) {
 
   // If the shift is between consecutive frames, track the active trackers
   // from the previous frame into this one.
-  vector<Marker> marker_in_previous_frame;
-  tracks_->TracksInImage(current_, &marker_in_previous_frame);
-  foreach (const Marker &marker, marker_in_previous_frame) {
-    //if (active_tracks_.find(marker.track) == active_tracks_.end()) {
-    //  continue
-    //}
-    int size = 64;
-    int half_size = size / 2;
+  if(frame == current_+1) {
+    vector<Marker> marker_in_previous_frame;
+    tracks_->TracksInImage(current_, &marker_in_previous_frame);
+    foreach (const Marker &marker, marker_in_previous_frame) {
+      //if (active_tracks_.find(marker.track) == active_tracks_.end()) {
+      //  continue
+      //}
+      int size = 64;
+      int half_size = size / 2;
 
-    // [xy][01] is the upper right box corner.
-    int x0 = marker.x - half_size;
-    int y0 = marker.y - half_size;
-    FloatImage old_patch;
-    if (!CopyRegionFromQImage(current_image_, size, size,
-                              &x0, &y0,
-                              &old_patch)) {
-      // TODO(keir): Must handle this case! Currently no marker delete.
-      LG << "Copy from old frame failed.";
-      continue;
-    }
+      // [xy][01] is the upper right box corner.
+      int x0 = marker.x - half_size;
+      int y0 = marker.y - half_size;
+      FloatImage old_patch;
+      if (!CopyRegionFromQImage(clip_->Frame(current_), size, size,
+                                &x0, &y0,
+                                &old_patch)) {
+        // TODO(keir): Must handle this case! Currently no marker delete.
+        LG << "Copy from old frame failed.";
+        continue;
+      }
 
-    int x1 = marker.x - half_size;
-    int y1 = marker.y - half_size;
-    FloatImage new_patch;
-    if (!CopyRegionFromQImage(image, size, size,
-                              &x1, &y1,
-                              &new_patch)) {
-      // TODO(keir): Must handle this case! Currently no marker delete.
-      LG << "Copy from new frame failed.";
-      continue;
-    }
+      int x1 = marker.x - half_size;
+      int y1 = marker.y - half_size;
+      FloatImage new_patch;
+      if (!CopyRegionFromQImage(clip_->Frame(frame), size, size,
+                                &x1, &y1,
+                                &new_patch)) {
+        // TODO(keir): Must handle this case! Currently no marker delete.
+        LG << "Copy from new frame failed.";
+        continue;
+      }
 
-    double xx0 = marker.x - x0;
-    double yy0 = marker.y - y0;
-    double xx1 = marker.x - x1;
-    double yy1 = marker.y - y1;
-    if (region_tracker_->Track(old_patch, new_patch,
-                               xx0, yy0,
-                               &xx1, &yy1)) {
-      tracks_->Insert(frame, marker.track, x1 + xx1, y1 + yy1);
-      LG << "Tracked (" << xx0 << ", " << yy0 << ") to ("
-         << xx1 << ", " << yy1 << ").";
-    } else {
-      // TODO(keir): Must handle this case! Currently no marker delete.
+      double xx0 = marker.x - x0;
+      double yy0 = marker.y - y0;
+      double xx1 = marker.x - x1;
+      double yy1 = marker.y - y1;
+      if (region_tracker_->Track(old_patch, new_patch,
+                                 xx0, yy0,
+                                 &xx1, &yy1)) {
+        tracks_->Insert(frame, marker.track, x1 + xx1, y1 + yy1);
+        LG << "Tracked (" << xx0 << ", " << yy0 << ") to ("
+           << xx1 << ", " << yy1 << ").";
+      } else {
+        // TODO(keir): Must handle this case! Currently no marker delete.
+      }
     }
   }
 
   current_ = frame;
-  current_image_ = image;
   slider.setValue(frame);
   frameNumber.setValue(frame);
 
@@ -385,7 +373,7 @@ void Tracker::last() {
 
 void Tracker::start() {
   playAction->setChecked(true);
-  playTimer.start(100);
+  playTimer.start(50);
 }
 void Tracker::stop() {
   playAction->setChecked(false);

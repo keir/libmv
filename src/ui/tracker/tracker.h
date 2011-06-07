@@ -46,7 +46,6 @@ class Tracker : public QMainWindow {
   QScopedPointer<Clip> clip_;
   QScopedPointer<libmv::Tracks> tracks_;
   QScopedPointer<libmv::RegionTracker> region_tracker_;
-  QImage current_image_;
 
 // UI
   QSpinBox frameNumber;
