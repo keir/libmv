@@ -38,6 +38,7 @@ class Tracks {
                                     std::vector<Marker> *markers);
   void MarkersInImage(int image, std::vector<Marker> *markers);
   void MarkersInTrack(int track, std::vector<Marker> *markers);
+  void RemoveMarkersForTrack(int track);
   int MaxImage() const;
   int MaxTrack() const;
 
