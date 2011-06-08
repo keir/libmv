@@ -53,18 +53,18 @@ class Tracker : public QMainWindow {
   QScopedPointer<libmv::RegionTracker> region_tracker_;
 
 // Model
-  QScopedPointer<TrackerScene> scene;
-  QGraphicsPixmapItem* pixmap;
-  QVector<QGraphicsPathItem*> tracks;
+  QScopedPointer<TrackerScene> scene_;
+  QGraphicsPixmapItem *pixmap_;
+//  QVector<QGraphicsPathItem*> tracks;
 
 // View
-  QSpinBox frameNumber;
-  QAction* playAction;
-  QSlider slider;
-  View* view;
-  View* zoomView;
-  QTimer playTimer;
-  int currentFrame_;
-  TrackItem* currentItem_;
+  QSpinBox frame_number_;
+  QAction* play_action_;
+  QSlider slider_;
+  View* view_;
+  View* zoom_view_;
+  QTimer play_timer_;
+  int current_frame_;
+  TrackItem* current_item_;
 };
 #endif
