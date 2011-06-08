@@ -38,9 +38,9 @@ namespace libmv {
     \sa Tracks
 */
 struct Marker {
-  double x, y;
   int image;
   int track;
+  double x, y;
 };
 
 /*!
@@ -62,36 +62,42 @@ struct Marker {
 class Tracks {
  public:
 /*!
-    Inserts a marker item into the set.
+    Inserts a marker into the set.
 
     \a image and \a track are the keys used to retrieve the markers.
     \note You can also use this method to edit existing markers.
     \note You can generate a new track identifier using \l MaxTrack() + 1
 */
   void Insert(int image, int track, double x, double y);
+
+/*!
+    Returns an std::vector containing all markers for a reconstruction.
+*/
+  std::vector<Marker> AllMarkers();
+/*!
+    Returns an std::vector containing all markers belonging to a track.
+*/
+  std::vector<Marker> MarkersInTrack(int track);
+/*!
+    Returns an std::vector containing all markers visible in an image.
+*/
+  std::vector<Marker> MarkersInImage(int image);
 /*!
     Returns an std::vector containing all markers for tracks visible in both images.
 
     \a image1 and \a image2 are the identifiers used when the markers were inserted.
 */
-  void MarkersForTracksInBothImages(int image1, int image2,
-                                    std::vector<Marker> *markers);
-/*!
-    Returns an std::vector containing all markers visible in an image.
-*/
-  void MarkersInImage(int image, std::vector<Marker> *markers);
-/*!
-    Returns an std::vector containing all markers belonging to a track.
-*/
-  void MarkersInTrack(int track, std::vector<Marker> *markers);
-/*!
-    Returns an std::vector containing all markers for a reconstruction.
-*/
-  void AllMarkers(std::vector<Marker> *markers);
+  std::vector<Marker> MarkersForTracksInBothImages(int image1, int image2);
+
 /*!
     Removes all markers belonging to \a track.
 */
   void RemoveMarkersForTrack(int track);
+/*!
+    Removes the marker in \a image belonging to \a track.
+*/
+  void RemoveMarker(int image, int track);
+
 /*!
     Returns the maximum image identifier used.
 */

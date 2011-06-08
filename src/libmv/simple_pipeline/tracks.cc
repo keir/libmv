@@ -42,13 +42,11 @@ void Tracks::Insert(int image, int track, double x, double y) {
     }
   }
   LG << "Making new marker " << track << " with track " << track;
-  Marker marker = { x, y, image, track };
+  Marker marker = { image, track, x, y };
   markers_.push_back(marker);
 }
 
-void Tracks::MarkersForTracksInBothImages(int image1,
-                                int image2,
-                                vector<Marker> *markers) {
+vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) {
   vector<int> image1_tracks;
   vector<int> image2_tracks;
 
@@ -69,36 +67,39 @@ void Tracks::MarkersForTracksInBothImages(int image1,
                         image2_tracks.begin(), image2_tracks.end(),
                         std::back_inserter(intersection));
 
-  markers->clear();
+  vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (std::binary_search(intersection.begin(),
                            intersection.end(),
                            markers_[i].image)) {
-      markers->push_back(markers_[i]);
+      markers.push_back(markers_[i]);
     }
   }
+  return markers;
 }
 
-void Tracks::MarkersInImage(int image, vector<Marker> *markers) {
-  markers->clear();
+vector<Marker> Tracks::MarkersInImage(int image) {
+  vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (image == markers_[i].image) {
-      markers->push_back(markers_[i]);
+      markers.push_back(markers_[i]);
     }
   }
+  return markers;
 }
 
-void Tracks::MarkersInTrack(int track, vector<Marker> *markers) {
-  markers->clear();
+vector<Marker> Tracks::MarkersInTrack(int track) {
+  vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (track == markers_[i].track) {
-      markers->push_back(markers_[i]);
+      markers.push_back(markers_[i]);
     }
   }
+  return markers;
 }
 
-void Tracks::AllMarkers(std::vector<Marker> *markers) {
-  *markers = markers_;
+vector<Marker> Tracks::AllMarkers() {
+  return markers_;
 }
 
 void Tracks::RemoveMarkersForTrack(int track) {
@@ -110,7 +111,17 @@ void Tracks::RemoveMarkersForTrack(int track) {
   }
   markers_.resize(size);
 }
-  
+
+void Tracks::RemoveMarker(int image, int track) {
+  int size = 0;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (markers_[i].image != image || markers_[i].track != track) {
+      markers_[size++] = markers_[i];
+    }
+  }
+  markers_.resize(size);
+}
+
 int Tracks::MaxImage() const {
   // TODO(MatthiasF): maintain a max_image_ member (updated on Insert)
   int max_image = -1;

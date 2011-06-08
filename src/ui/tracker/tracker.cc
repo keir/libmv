@@ -31,6 +31,7 @@
 #include "libmv/tracking/retrack_region_tracker.h"
 
 using std::vector;
+using libmv::Marker;
 
 // Copy the region starting at *x0, *y0 with width w, h into region. If the
 // region asked for is outside the image border, clipping is done and the
@@ -113,23 +114,23 @@ void TrackItem::paint(QPainter *painter, const QStyleOptionGraphicsItem*, QWidge
 
 /// Tracker
 
-Tracker::Tracker() :
+Tracker::Tracker(QObject *parent) : QGraphicsScene(parent),
   tracks_(new libmv::Tracks()),
   region_tracker_(CreateRegionTracker()),
   current_item_(0) {}
+Tracker::~Tracker() {}
 
 void Tracker::Load( QByteArray data ) {
-  libmv::Marker* markers = (libmv::Marker*)data.constData();
-  for(size_t i=0;i<data.size()/sizeof(libmv::Marker);i++) {
-    libmv::Marker marker = markers[i];
-    tracks_->Insert(marker.image,marker.track,marker.x,marker.y);
+  Marker* markers = (Marker*)data.constData();
+  for(size_t i=0; i<data.size()/sizeof(Marker); i++) {
+    Marker marker = markers[i];
+    tracks_->Insert(marker.image, marker.track, marker.x, marker.y);
   }
 }
 
 QByteArray Tracker::Save() {
-  std::vector<libmv::Marker> markers;
-  tracks_->AllMarkers(&markers);
-  return QByteArray((char*)markers.data(),markers.size()*sizeof(libmv::Marker));
+  std::vector<Marker> markers = tracks_->AllMarkers();
+  return QByteArray((char*)markers.data(), markers.size()*sizeof(Marker));
 }
 
 void Tracker::SetFrame(int frame, QImage image, bool track) {
@@ -144,14 +145,14 @@ void Tracker::SetFrame(int frame, QImage image, bool track) {
 
   // track active trackers from the previous frame into this one.
   if (track) {
-    vector<libmv::Marker> markers_in_previous_frame;
-    tracks_->MarkersInImage(previous_frame, &markers_in_previous_frame);
-    foreach (const libmv::Marker &marker, markers_in_previous_frame) {
+    vector<Marker> previous_markers = tracks_->MarkersInImage(previous_frame);
+    foreach (const Marker &marker, previous_markers) {
       if( !track_items_[marker.track]->isSelected() ) continue;
       // TODO(keir): For now this uses a fixed size region. What's needed is
       // an extension to use custom sized boxes around the tracked point.
       int size = 64;
       int half_size = size / 2;
+
 
       // [xy][01] is the upper right box corner.
       int x0 = marker.x - half_size;
@@ -187,13 +188,12 @@ void Tracker::SetFrame(int frame, QImage image, bool track) {
   }
   previous_image_ = image;
 
-  vector<libmv::Marker> markers;
-  tracks_->MarkersInImage(current_frame_, &markers);
+  vector<Marker> markers = tracks_->MarkersInImage(current_frame_);
   LG << "Got " << markers.size() << " markers.";
 
   // Set the position of the tracks for this frame.
   QSet<int> tracks_in_new_frame;
-  foreach (const libmv::Marker &marker, markers) {
+  foreach (const Marker &marker, markers) {
     // Create a visible set to find the tracks that disappeared from the
     // previous frame.
     tracks_in_new_frame << marker.track;
@@ -222,7 +222,20 @@ void Tracker::SetFrame(int frame, QImage image, bool track) {
   }
 }
 
-Tracker::~Tracker() {}
+void Tracker::deleteCurrentMarker() {
+  if(current_item_) {
+    tracks_->RemoveMarker(current_frame_, current_item_->Track());
+    current_item_->hide();
+  }
+}
+
+void Tracker::deleteCurrentTrack() {
+  if(current_item_) {
+    tracks_->RemoveMarkersForTrack(current_item_->Track());
+    current_item_->hide();
+    current_item_ = 0;
+  }
+}
 
 void Tracker::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
   QGraphicsScene::mousePressEvent(mouseEvent);

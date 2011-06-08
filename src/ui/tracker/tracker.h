@@ -28,7 +28,7 @@
 namespace libmv {
 class Tracks;
 class RegionTracker;
-}  // namespace libmv
+}
 
 class TrackItem : public QGraphicsItem {
 public:
@@ -49,14 +49,18 @@ private:
 class Tracker : public QGraphicsScene {
   Q_OBJECT
  public:
-  Tracker();
+  Tracker(QObject* parent=0);
   ~Tracker();
-  void Load( QByteArray data );
+  void Load(QByteArray data);
   QByteArray Save();
   void SetFrame(int frame, QImage image, bool track);
 
+ public slots:
+  void deleteCurrentMarker();
+  void deleteCurrentTrack();
+
  signals:
-  void trackChanged(TrackItem*);
+  void trackChanged(QGraphicsItem*);
 
  protected:
   void mousePressEvent(QGraphicsSceneMouseEvent*);

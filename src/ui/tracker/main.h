@@ -32,7 +32,7 @@
 class Clip;
 class Tracker;
 class View;
-class TrackItem;
+class QGraphicsItem;
 class QGraphicsPixmapItem;
 
 class MainWindow : public QMainWindow {
@@ -52,7 +52,7 @@ class MainWindow : public QMainWindow {
   void next();
   void last();
   void stop();
-  void viewTrack(TrackItem*);
+  void viewTrack(QGraphicsItem*);
 
  protected:
   void resizeEvent(QResizeEvent *);
@@ -61,8 +61,8 @@ class MainWindow : public QMainWindow {
   void open(QString);
 
   QString path_;
-  QScopedPointer<Clip> clip_;
-  QScopedPointer<Tracker> tracker_;
+  Clip* clip_;
+  Tracker* tracker_;
   QGraphicsPixmapItem *pixmap_;
 
   QAction* track_action_;

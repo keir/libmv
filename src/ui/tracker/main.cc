@@ -26,15 +26,18 @@
 #include <QGraphicsView>
 #include <QFileDialog>
 #include <QDockWidget>
+#include <QToolButton>
 #include <QSettings>
 #include <QCache>
 #include <QDebug>
+#include <QMenu>
 #include <QTime>
 
 #include "libmv/tools/tool.h"
 
-class Clip {
+class Clip : public QObject {
  public:
+  Clip(QObject* parent=0) : QObject(parent) {}
   void Open(QString path) {
     cache_.setMaxCost(128 * 1024 * 1024);
     if (path.endsWith(".avi")) {
@@ -79,12 +82,12 @@ public:
 };
 
 MainWindow::MainWindow()
-  : clip_(new Clip),
-    tracker_(new Tracker()),
-    view_(new View(tracker_.data())),
-    zoom_view_(new View(tracker_.data())),
+  : clip_(new Clip(this)),
+    tracker_(new Tracker(this)),
+    view_(new View(tracker_)),
+    zoom_view_(new View(tracker_)),
     current_frame_(-1) {
-  connect(tracker_.data(), SIGNAL(trackChanged(TrackItem*)), SLOT(viewTrack(TrackItem*)));
+  connect(tracker_, SIGNAL(trackChanged(QGraphicsItem*)), SLOT(viewTrack(QGraphicsItem*)));
 
   setWindowTitle("LibMV Simple Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
@@ -100,11 +103,28 @@ MainWindow::MainWindow()
   // Create the toolbar.
   QToolBar* toolbar = addToolBar("Main Toolbar");
   toolbar->setObjectName("mainToolbar");
+
   toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
+  QToolButton* deleteButton = new QToolButton;
+  QMenu* deletePopup = new QMenu(this);
+  deletePopup->addAction(QIcon(":/delete"),
+                         "Delete current marker",
+                         tracker_, SLOT(deleteCurrentMarker()));
+  QAction* deleteTrack = deletePopup->addAction(QIcon(":/delete-row"),
+                                                "Delete current track",
+                                                tracker_,
+                                                SLOT(deleteCurrentTrack()));
+  deleteButton->setMenu(deletePopup);
+  deleteButton->setDefaultAction(deleteTrack);
+  deleteButton->setPopupMode(QToolButton::MenuButtonPopup);
+  connect(deletePopup,SIGNAL(triggered(QAction*)),
+          deleteButton,SLOT(setDefaultAction(QAction*)));
+  toolbar->addWidget(deleteButton);
   track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
+
   toolbar->addAction(QIcon(":/skip-backward"), "Seek to first frame",
                      this, SLOT(first()));
   toolbar->addAction(QIcon(":/step-backward"),"Step to previous frame",
@@ -165,6 +185,10 @@ void MainWindow::open(QString path) {
   pixmap_ = 0;
   path_ = path;
   clip_->Open(path);
+  if(clip_->size() == 0) {
+    open();
+    return;
+  }
   QFile tracks(path+"/tracks");
   if(tracks.open(QFile::ReadOnly)) {
     tracker_->Load( tracks.readAll() );
@@ -259,7 +283,7 @@ void MainWindow::last() {
   seek(clip_->size() - 1);
 }
 
-void MainWindow::viewTrack(TrackItem* item) {
+void MainWindow::viewTrack(QGraphicsItem* item) {
   if (!zoom_view_->hasFocus()) {
     zoom_view_->fitInView(item, Qt::KeepAspectRatio);
   }
