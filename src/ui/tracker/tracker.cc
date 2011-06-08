@@ -1,6 +1,23 @@
-// Copyright 2011 libmv authors
-// Initial revision by Matthias Fauconneau.
+// Copyright (c) 2011 libmv authors.
 //
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
 #include "tracker.h"
 #include "libmv/simple_pipeline/tracks.h"
 #include "libmv/logging/logging.h"
@@ -29,14 +46,15 @@ const int kTrackerHalfWindowSize = 5;
 
 class TrackItem : public QGraphicsRectItem {
 public:
-  static const int size = 64;
-  TrackItem(int track)
-      : QGraphicsRectItem(-size/2, -size/2, size, size), track(track) {
+  static const int kWindowSize = 64;
+  TrackItem(int track) :
+    QGraphicsRectItem(-kWindowSize/2, -kWindowSize/2, kWindowSize, kWindowSize),
+    track_(track) {
     setPen(QPen(QBrush(Qt::green), 3));
     setFlags(QGraphicsItem::ItemIsSelectable|QGraphicsItem::ItemIsMovable);
   }
 
-  int track;
+  int track_;
 };
 
 class TrackerScene : public QGraphicsScene {
@@ -74,12 +92,12 @@ class TrackerScene : public QGraphicsScene {
     }
 
     // Hide any tracks that were visible in the last frame but not this one.
-    foreach (int track, tracks_in_current_frame_) {
+    foreach (int track, tracks_in_previous_frame_) {
       if (!tracks_in_new_frame.contains(track)) {
         track_items_[track]->hide();
       }
     }
-    std::swap(tracks_in_current_frame_, tracks_in_new_frame);
+    tracks_in_previous_frame_ = tracks_in_new_frame;
     current_frame_ = frame;
   }
 
@@ -106,7 +124,7 @@ class TrackerScene : public QGraphicsScene {
 
  private:
   QMap<int, TrackItem *> track_items_;
-  QSet<int> tracks_in_current_frame_;
+  QSet<int> tracks_in_previous_frame_;
   libmv::Tracks *tracks_;
   int current_frame_;
   int selected_track_;
@@ -175,6 +193,7 @@ bool CopyRegionFromQImage(QImage image,
     w += *x0;
     *x0 = 0;
   }
+
   if (*y0 < 0) {
     h += *y0;
     *y0 = 0;
@@ -207,6 +226,7 @@ libmv::RegionTracker *CreateRegionTracker() {
   libmv::KltRegionTracker *klt_region_tracker = new libmv::KltRegionTracker;
   klt_region_tracker->half_window_size = 5;
   klt_region_tracker->max_iterations = 200;
+
   libmv::PyramidRegionTracker *pyramid_region_tracker =
       new libmv::PyramidRegionTracker(klt_region_tracker, 3);
   return new libmv::RetrackRegionTracker(pyramid_region_tracker, 0.2);
@@ -214,7 +234,7 @@ libmv::RegionTracker *CreateRegionTracker() {
 
 class View : public QGraphicsView {
 public:
-  View(QGraphicsScene* scene) {
+  View(QGraphicsScene *scene) {
     setScene(scene);
     setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
     setFrameShape(QFrame::NoFrame);
@@ -233,7 +253,6 @@ Tracker::Tracker()
     zoom_view_(new View(scene_.data())),
     current_frame_(-1),
     current_item_(0) {
-
   connect(scene_.data(), SIGNAL(selectionChanged()), SLOT(selectMarker()));
   connect(scene_.data(), SIGNAL(changed(QList<QRectF>)), SLOT(moveMarker()));
 
@@ -241,11 +260,12 @@ Tracker::Tracker()
   setMaximumSize(qApp->desktop()->availableGeometry().size());
   connect(&play_timer_, SIGNAL(timeout()), SLOT(next()));
 
-  QDockWidget* detailDock = new QDockWidget("Selected Track Details");
-  detailDock->setObjectName("detailDock");
-  addDockWidget(Qt::TopDockWidgetArea, detailDock);
-  zoom_view_->setMinimumSize(2 * TrackItem::size, 2 * TrackItem::size);
-  detailDock->setWidget(zoom_view_);
+  QDockWidget* detail_dock = new QDockWidget("Selected Track Details");
+  detail_dock->setObjectName("detailDock");
+  addDockWidget(Qt::TopDockWidgetArea, detail_dock);
+  zoom_view_->setMinimumSize(2 * TrackItem::kWindowSize,
+                             2 * TrackItem::kWindowSize);
+  detail_dock->setWidget(zoom_view_);
 
   // Create the toolbar.
   QToolBar* toolbar = addToolBar("Main Toolbar");
@@ -265,8 +285,7 @@ Tracker::Tracker()
   connect(play_action_, SIGNAL(triggered(bool)), SLOT(togglePlay(bool)));
   toolbar->addWidget(&slider_);
   slider_.setOrientation(Qt::Horizontal);
-  slider_.style()->styleHint(QStyle::SH_Slider_AbsoluteSetButtons);
-  connect(&slider_, SIGNAL(sliderMoved(int)), SLOT(seek(int)));
+  connect(&slider_, SIGNAL(valueChanged(int)), SLOT(seek(int)));
   toolbar->addAction(QIcon::fromTheme("media-seek-forward"), "Next Frame",
                      this, SLOT(next()))
       ->setShortcut(QKeySequence("Right"));
@@ -429,7 +448,7 @@ void Tracker::selectMarker() {
 void Tracker::moveMarker() {
   if(current_item_) {
     tracks_->Insert(current_frame_,
-                    current_item_->track,
+                    current_item_->track_,
                     current_item_->pos().x(),
                     current_item_->pos().y());
     if (!zoom_view_->hasFocus()) {
