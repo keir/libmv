@@ -34,7 +34,8 @@ struct Marker {
 class Tracks {
  public:
   void Insert(int image, int track, double x, double y);
-  void MarkersForTracksInBothImages(int image1, int image2, std::vector<Marker> *markers);
+  void MarkersForTracksInBothImages(int image1, int image2,
+                                    std::vector<Marker> *markers);
   void MarkersInImage(int image, std::vector<Marker> *markers);
   void MarkersInTrack(int track, std::vector<Marker> *markers);
   int MaxImage() const;
