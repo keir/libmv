@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="open">icons/document-open.png</file>
+        <file alias="play-backward">icons/media-play-backward.png</file>
+        <file alias="play-forward">icons/media-play-forward.png</file>
+        <file alias="step-backward">icons/media-seek-backward.png</file>
+        <file alias="step-forward">icons/media-seek-forward.png</file>
+        <file alias="skip-backward">icons/media-skip-backward.png</file>
+        <file alias="skip-forward">icons/media-skip-forward.png</file>
+        <file alias="record">icons/media-record.png</file>
+    </qresource>
+</RCC>

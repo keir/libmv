@@ -1,5 +1,6 @@
 HEADERS += tracker.h main.h
 SOURCES += tracker.cc main.cc
+RESOURCES = tracker.qrc
 INCLUDEPATH += ../..
 INCLUDEPATH += /usr/include/eigen3/
 INCLUDEPATH += ../../third_party/glog/src
@@ -15,6 +16,7 @@ profiler {
 
 OBJECTS_DIR=build
 MOC_DIR=build
+RCC_DIR=build
 DESTDIR=build
 
 OTHER_FILES += ../../libmv/correspondence/klt.cc ../../libmv/correspondence/klt.h

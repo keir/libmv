@@ -98,6 +98,7 @@ void Tracks::MarkersInTrack(int track, vector<Marker> *markers) {
 }
 
 void Tracks::RemoveMarkersForTrack(int track) {
+  // TODO(MatthiasF): compress inplace
   vector<Marker> trimmed_markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (markers_[i].track != track) {
@@ -108,6 +109,7 @@ void Tracks::RemoveMarkersForTrack(int track) {
 }
   
 int Tracks::MaxImage() const {
+  // TODO(MatthiasF): maintain a max_image_ member (updated on Insert)
   int max_image = -1;
   for (int i = 0; i < markers_.size(); ++i) {
     max_image = std::max(markers_[i].image, max_image);
@@ -116,6 +118,7 @@ int Tracks::MaxImage() const {
 }
 
 int Tracks::MaxTrack() const {
+  // TODO(MatthiasF): maintain a max_track_ member (updated on Insert)
   int max_track = -1;
   for (int i = 0; i < markers_.size(); ++i) {
     max_track = std::max(markers_[i].track, max_track);

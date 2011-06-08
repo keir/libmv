@@ -51,7 +51,7 @@ class Tracker : public QGraphicsScene {
  public:
   Tracker();
   ~Tracker();
-  void SetFrame(int frame, QImage image);
+  void SetFrame(int frame, QImage image, bool track);
 
  signals:
   void trackChanged(TrackItem*);

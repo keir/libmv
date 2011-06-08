@@ -98,7 +98,6 @@ MainWindow::MainWindow()
 
   setWindowTitle("LibMV Simple Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
-  connect(&play_timer_, SIGNAL(timeout()), SLOT(next()));
 
   QDockWidget* detail_dock = new QDockWidget("Selected Track Details");
   detail_dock->setObjectName("detailDock");
@@ -111,27 +110,35 @@ MainWindow::MainWindow()
   // Create the toolbar.
   QToolBar* toolbar = addToolBar("Main Toolbar");
   toolbar->setObjectName("mainToolbar");
-  toolbar->addAction(QIcon::fromTheme("document-open"), "Open...",
+  toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
-  toolbar->addAction(QIcon::fromTheme("media-skip-backward"), "First Frame",
+  track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
+  track_action_->setCheckable(true);
+  connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
+  toolbar->addAction(QIcon(":/skip-backward"), "Seek to first frame",
                      this, SLOT(first()));
-  toolbar->addAction(QIcon::fromTheme("media-seek-backward"),"Previous Frame",
+  toolbar->addAction(QIcon(":/step-backward"),"Step to previous frame",
                      this, SLOT(previous()))->setShortcut(QKeySequence("Left"));
+  backward_action_ = toolbar->addAction(QIcon(":/play-backward"),
+                                        "Play sequence backwards");
+  backward_action_->setCheckable(true);
+  connect(backward_action_, SIGNAL(triggered(bool)), SLOT(toggleBackward(bool)));
+  connect(&previous_timer_, SIGNAL(timeout()), SLOT(previous()));
+
   toolbar->addWidget(&frame_number_);
   connect(&frame_number_, SIGNAL(valueChanged(int)), SLOT(seek(int)));
-  play_action_ = toolbar->addAction(QIcon::fromTheme("media-playback-start"),
-                                  QKeySequence("Play"));
-  play_action_->setCheckable(true);
-  play_action_->setShortcut(QKeySequence("Space"));
-  connect(play_action_, SIGNAL(triggered(bool)), SLOT(togglePlay(bool)));
   toolbar->addWidget(&slider_);
   slider_.setOrientation(Qt::Horizontal);
   connect(&slider_, SIGNAL(valueChanged(int)), SLOT(seek(int)));
-  toolbar->addAction(QIcon::fromTheme("media-seek-forward"), "Next Frame",
-                     this, SLOT(next()))
+
+  forward_action_ = toolbar->addAction(QIcon(":/play-forward"),
+                                       "Play sequence forwards");
+  forward_action_->setCheckable(true);
+  connect(forward_action_, SIGNAL(triggered(bool)), SLOT(toggleForward(bool)));
+  connect(&next_timer_, SIGNAL(timeout()), SLOT(next()));
+  toolbar->addAction(QIcon(":/step-forward"), "Next Frame",this, SLOT(next()))
       ->setShortcut(QKeySequence("Right"));
-  toolbar->addAction(QIcon::fromTheme("media-skip-forward"), "Last Frame",
-                     this, SLOT(last()));
+  toolbar->addAction(QIcon(":/skip-forward"), "Last Frame",this, SLOT(last()));
 
   setCentralWidget(view_);
 
@@ -177,6 +184,10 @@ void MainWindow::seek(int frame) {
     stop();
     return;
   }
+  // Track only if the shift is between consecutive frames.
+  if( frame > current_frame_ + 1 || frame < current_frame_ - 1 ) {
+    track_action_->setChecked(false);
+  }
   current_frame_ = frame;
 
   // Get and display the image.
@@ -192,7 +203,45 @@ void MainWindow::seek(int frame) {
   zoom_view_->clearFocus();
   slider_.setValue(current_frame_);
   frame_number_.setValue(current_frame_);
-  tracker_->SetFrame(current_frame_, image);
+  tracker_->SetFrame(current_frame_, image, track_action_->isChecked());
+}
+
+void MainWindow::toggleTracking(bool track) {
+  stop();
+  if(track) {
+    backward_action_->setText("Track sequence backwards");
+    forward_action_->setText("Track sequence forwards");
+  } else {
+    backward_action_->setText("Play sequence backwards");
+    forward_action_->setText("Play sequence forwards");
+  }
+}
+
+void MainWindow::toggleBackward(bool play) {
+  if (play) {
+    forward_action_->setChecked(false);
+    next_timer_.stop();
+    previous_timer_.start(0);
+  } else {
+    stop();
+  }
+}
+
+void MainWindow::toggleForward(bool play) {
+  if (play) {
+    backward_action_->setChecked(false);
+    previous_timer_.stop();
+    next_timer_.start(0);
+  } else {
+    stop();
+  }
+}
+
+void MainWindow::stop() {
+  backward_action_->setChecked(false);
+  previous_timer_.stop();
+  forward_action_->setChecked(false);
+  next_timer_.stop();
 }
 
 void MainWindow::first() {
@@ -209,24 +258,6 @@ void MainWindow::next() {
 
 void MainWindow::last() {
   seek(clip_->size() - 1);
-}
-
-void MainWindow::start() {
-  play_action_->setChecked(true);
-  play_timer_.start(50);
-}
-
-void MainWindow::stop() {
-  play_action_->setChecked(false);
-  play_timer_.stop();
-}
-
-void MainWindow::togglePlay(bool play) {
-  if (play) {
-    start();
-  } else {
-    stop();
-  }
 }
 
 void MainWindow::viewTrack(TrackItem* item) {

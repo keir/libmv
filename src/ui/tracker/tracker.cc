@@ -101,7 +101,7 @@ QRectF TrackItem::boundingRect() const {
                 kSearchWindowSize, kSearchWindowSize);
 }
 void TrackItem::paint(QPainter *painter, const QStyleOptionGraphicsItem*, QWidget*) {
-  painter->setPen(QPen(QBrush( isSelected() ? Qt::darkGreen : Qt::gray), 2));
+  painter->setPen(QPen(QBrush( isSelected() ? Qt::green : Qt::darkGreen), 2));
   painter->drawRect(-kSearchWindowSize/2, -kSearchWindowSize/2,
                     kSearchWindowSize, kSearchWindowSize);
   if(isSelected()) {
@@ -118,7 +118,7 @@ Tracker::Tracker() :
   region_tracker_(CreateRegionTracker()),
   current_item_(0) {}
 
-void Tracker::SetFrame(int frame, QImage image) {
+void Tracker::SetFrame(int frame, QImage image, bool track) {
   if (frame == current_frame_) {
     LG << "Ignoring request to set frame to current frame.";
     return;
@@ -128,9 +128,8 @@ void Tracker::SetFrame(int frame, QImage image) {
   int previous_frame = current_frame_;
   current_frame_ = frame;
 
-  // If the shift is between consecutive frames, track active trackers
-  // from the previous frame into this one.
-  if (current_frame_ == previous_frame + 1) {
+  // track active trackers from the previous frame into this one.
+  if (track) {
     vector<libmv::Marker> markers_in_previous_frame;
     tracks_->MarkersInImage(previous_frame, &markers_in_previous_frame);
     foreach (const libmv::Marker &marker, markers_in_previous_frame) {
@@ -172,11 +171,10 @@ void Tracker::SetFrame(int frame, QImage image) {
       }
     }
   }
-
   previous_image_ = image;
 
   vector<libmv::Marker> markers;
-  tracks_->MarkersInImage(frame, &markers);
+  tracks_->MarkersInImage(current_frame_, &markers);
   LG << "Got " << markers.size() << " markers.";
 
   // Set the position of the tracks for this frame.
@@ -214,6 +212,7 @@ void Tracker::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
   if (mouseEvent->isAccepted()) {
     if(!selectedItems().isEmpty()) {
       current_item_ = static_cast<TrackItem*>(selectedItems().first());
+      emit trackChanged(current_item_);
     }
     return;
   }

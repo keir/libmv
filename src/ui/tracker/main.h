@@ -44,14 +44,14 @@ class MainWindow : public QMainWindow {
  public slots:
   void open();
   void seek(int);
+  void toggleTracking(bool);
+  void toggleBackward(bool);
+  void toggleForward(bool);
   void first();
   void previous();
   void next();
   void last();
-  void togglePlay(bool);
-  void start();
   void stop();
-
   void viewTrack(TrackItem*);
 
  protected:
@@ -65,11 +65,14 @@ class MainWindow : public QMainWindow {
   QGraphicsPixmapItem *pixmap_;
 
   QSpinBox frame_number_;
-  QAction* play_action_;
+  QAction* track_action_;
+  QAction* backward_action_;
+  QAction* forward_action_;
   QSlider slider_;
   View* view_;
   View* zoom_view_;
-  QTimer play_timer_;
+  QTimer previous_timer_;
+  QTimer next_timer_;
   int current_frame_;
 };
 #endif
