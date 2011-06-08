@@ -96,6 +96,16 @@ void Tracks::MarkersInTrack(int track, vector<Marker> *markers) {
     }
   }
 }
+
+void Tracks::RemoveMarkersForTrack(int track) {
+  vector<Marker> trimmed_markers;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (markers_[i].track != track) {
+      trimmed_markers.push_back(markers_[i]);
+    }
+  }
+  swap(trimmed_markers, markers_);
+}
   
 int Tracks::MaxImage() const {
   int max_image = -1;
