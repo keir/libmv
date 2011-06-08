@@ -35,28 +35,18 @@
 
 class Clip {
  public:
-  void Open(QStringList paths) {
+  void Open(QString path) {
     cache_.setMaxCost(128 * 1024 * 1024);
-    if (paths.isEmpty()) {
-      return;
-    }
-    if (paths.size() == 1 && paths[0].endsWith(".avi")) {
-      // TODO(MatthiasF): load videos using ffmpeg"
+    if (path.endsWith(".avi")) {
+      // TODO(MatthiasF): load videos using ffmpeg
       return;
     }
 
     image_filenames_.clear();
-    foreach (QString path, paths) {
-      if (QFileInfo(path).isFile()) {
-        image_filenames_ << path;
-      } else {
-        foreach (QString file,
-                 QDir(path).entryList(QStringList("*.jpg") << "*.png",
-                                      QDir::Files,
-                                      QDir::Name)) {
-          image_filenames_ << QDir(path).filePath(file);
-        }
-      }
+    foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
+                                  QDir::Files,
+                                  QDir::Name)) {
+      image_filenames_ << QDir(path).filePath(file);
     }
   }
 
@@ -125,8 +115,8 @@ MainWindow::MainWindow()
   connect(backward_action_, SIGNAL(triggered(bool)), SLOT(toggleBackward(bool)));
   connect(&previous_timer_, SIGNAL(timeout()), SLOT(previous()));
 
-  toolbar->addWidget(&frame_number_);
-  connect(&frame_number_, SIGNAL(valueChanged(int)), SLOT(seek(int)));
+  toolbar->addWidget(&spinbox_);
+  connect(&spinbox_, SIGNAL(valueChanged(int)), SLOT(seek(int)));
   toolbar->addWidget(&slider_);
   slider_.setOrientation(Qt::Horizontal);
   connect(&slider_, SIGNAL(valueChanged(int)), SLOT(seek(int)));
@@ -150,27 +140,36 @@ MainWindow::MainWindow()
   if (args.isEmpty()) {
     open();
   } else {
-    open(args);
+    open(args.first());
   }
 }
 MainWindow::~MainWindow() {
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
+  QFile tracks(path_+"/tracks");
+  if(tracks.open(QFile::WriteOnly|QIODevice::Truncate)) {
+    tracks.write(tracker_->Save());
+  }
 }
 
 void MainWindow::open() {
-  open(QFileDialog::getOpenFileNames(
-      this,
-      tr("Select Images"),
-      "",
-      "Images (*.png *.jpg);;All Files (*.*)"));
+  open(QFileDialog::getExistingDirectory(this,"Select sequence folder"));
 }
 
-void MainWindow::open(QStringList paths) {
+void MainWindow::open(QString path) {
+  if(!QDir(path).exists()) {
+    open();
+    return;
+  }
   tracker_->clear();
   pixmap_ = 0;
-  clip_->Open(paths);
-  frame_number_.setMaximum(clip_->size() - 1);
+  path_ = path;
+  clip_->Open(path);
+  QFile tracks(path+"/tracks");
+  if(tracks.open(QFile::ReadOnly)) {
+    tracker_->Load( tracks.readAll() );
+  }
+  spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
   first();
 }
@@ -202,7 +201,7 @@ void MainWindow::seek(int frame) {
 
   zoom_view_->clearFocus();
   slider_.setValue(current_frame_);
-  frame_number_.setValue(current_frame_);
+  spinbox_.setValue(current_frame_);
   tracker_->SetFrame(current_frame_, image, track_action_->isChecked());
 }
 

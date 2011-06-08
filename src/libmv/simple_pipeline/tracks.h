@@ -85,6 +85,10 @@ class Tracks {
 */
   void MarkersInTrack(int track, std::vector<Marker> *markers);
 /*!
+    Returns an std::vector containing all markers for a reconstruction.
+*/
+  void AllMarkers(std::vector<Marker> *markers);
+/*!
     Removes all markers belonging to \a track.
 */
   void RemoveMarkersForTrack(int track);

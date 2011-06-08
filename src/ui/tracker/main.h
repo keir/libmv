@@ -58,16 +58,17 @@ class MainWindow : public QMainWindow {
   void resizeEvent(QResizeEvent *);
 
  private:
-  void open(QStringList);
+  void open(QString);
 
+  QString path_;
   QScopedPointer<Clip> clip_;
   QScopedPointer<Tracker> tracker_;
   QGraphicsPixmapItem *pixmap_;
 
-  QSpinBox frame_number_;
   QAction* track_action_;
   QAction* backward_action_;
   QAction* forward_action_;
+  QSpinBox spinbox_;
   QSlider slider_;
   View* view_;
   View* zoom_view_;

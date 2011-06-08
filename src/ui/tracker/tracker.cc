@@ -118,6 +118,20 @@ Tracker::Tracker() :
   region_tracker_(CreateRegionTracker()),
   current_item_(0) {}
 
+void Tracker::Load( QByteArray data ) {
+  libmv::Marker* markers = (libmv::Marker*)data.constData();
+  for(size_t i=0;i<data.size()/sizeof(libmv::Marker);i++) {
+    libmv::Marker marker = markers[i];
+    tracks_->Insert(marker.image,marker.track,marker.x,marker.y);
+  }
+}
+
+QByteArray Tracker::Save() {
+  std::vector<libmv::Marker> markers;
+  tracks_->AllMarkers(&markers);
+  return QByteArray((char*)markers.data(),markers.size()*sizeof(libmv::Marker));
+}
+
 void Tracker::SetFrame(int frame, QImage image, bool track) {
   if (frame == current_frame_) {
     LG << "Ignoring request to set frame to current frame.";
@@ -185,8 +199,11 @@ void Tracker::SetFrame(int frame, QImage image, bool track) {
     tracks_in_new_frame << marker.track;
 
     // Set the position of the marker in the new frame.
-    TrackItem* track_item = track_items_[marker.track];
-    Q_ASSERT(track_item);
+    TrackItem*& track_item = track_items_[marker.track];
+    if (!track_item) {
+      track_item = new TrackItem(marker.track);
+      addItem(track_item);
+    }
     track_item->setPos(marker.x, marker.y);
     track_item->show();
   }

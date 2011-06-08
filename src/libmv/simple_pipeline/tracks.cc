@@ -97,15 +97,18 @@ void Tracks::MarkersInTrack(int track, vector<Marker> *markers) {
   }
 }
 
+void Tracks::AllMarkers(std::vector<Marker> *markers) {
+  *markers = markers_;
+}
+
 void Tracks::RemoveMarkersForTrack(int track) {
-  // TODO(MatthiasF): compress inplace
-  vector<Marker> trimmed_markers;
+  int size = 0;
   for (int i = 0; i < markers_.size(); ++i) {
     if (markers_[i].track != track) {
-      trimmed_markers.push_back(markers_[i]);
+      markers_[size++] = markers_[i];
     }
   }
-  swap(trimmed_markers, markers_);
+  markers_.resize(size);
 }
   
 int Tracks::MaxImage() const {

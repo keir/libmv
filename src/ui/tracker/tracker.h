@@ -51,6 +51,8 @@ class Tracker : public QGraphicsScene {
  public:
   Tracker();
   ~Tracker();
+  void Load( QByteArray data );
+  QByteArray Save();
   void SetFrame(int frame, QImage image, bool track);
 
  signals:
