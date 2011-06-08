@@ -1,5 +1,5 @@
-HEADERS += tracker.h
-SOURCES += tracker.cc
+HEADERS += tracker.h main.h
+SOURCES += tracker.cc main.cc
 INCLUDEPATH += ../..
 INCLUDEPATH += /usr/include/eigen3/
 INCLUDEPATH += ../../third_party/glog/src

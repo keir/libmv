@@ -18,58 +18,59 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef SRC_UI_TRACKER_TRACKER_H_
-#define SRC_UI_TRACKER_TRACKER_H_
+#ifndef SRC_UI_TRACKER_MAIN_H_
+#define SRC_UI_TRACKER_MAIN_H_
 
-#include <QGraphicsScene>
-#include <QGraphicsItem>
-#include <QSet>
+#include <QApplication>
+#include <QMainWindow>
+#include <QToolBar>
+#include <QSpinBox>
+#include <QAction>
+#include <QSlider>
+#include <QTimer>
 
-namespace libmv {
-class Tracks;
-class RegionTracker;
-}  // namespace libmv
+class Clip;
+class Tracker;
+class View;
+class TrackItem;
+class QGraphicsPixmapItem;
 
-class TrackItem : public QGraphicsItem {
-public:
-  // TODO(MatthiasF): per track editable window sizes
-  static const int kSearchWindowSize = 64;
-  static const int kPatternWindowSize = 11;
-  TrackItem(int track);
-  inline int Track() { return track_; }
-
-protected:
-  QRectF boundingRect() const;
-  void paint(QPainter *painter, const QStyleOptionGraphicsItem*, QWidget*);
-
-private:
-  int track_;
-};
-
-class Tracker : public QGraphicsScene {
+class MainWindow : public QMainWindow {
   Q_OBJECT
  public:
-  Tracker();
-  ~Tracker();
-  void SetFrame(int frame, QImage image);
+  MainWindow();
+  ~MainWindow();
 
- signals:
-  void trackChanged(TrackItem*);
+ public slots:
+  void open();
+  void seek(int);
+  void first();
+  void previous();
+  void next();
+  void last();
+  void togglePlay(bool);
+  void start();
+  void stop();
+
+  void viewTrack(TrackItem*);
 
  protected:
-  void mousePressEvent(QGraphicsSceneMouseEvent*);
-  void mouseMoveEvent(QGraphicsSceneMouseEvent*);
-  void mouseReleaseEvent(QGraphicsSceneMouseEvent*);
+  void resizeEvent(QResizeEvent *);
 
  private:
-  QScopedPointer<libmv::Tracks> tracks_;
-  QScopedPointer<libmv::RegionTracker> region_tracker_;
-  QMap<int, TrackItem *> track_items_;
-  QSet<int> tracks_in_previous_frame_;
-  QImage previous_image_;
+  void open(QStringList);
+
+  QScopedPointer<Clip> clip_;
+  QScopedPointer<Tracker> tracker_;
+  QGraphicsPixmapItem *pixmap_;
+
+  QSpinBox frame_number_;
+  QAction* play_action_;
+  QSlider slider_;
+  View* view_;
+  View* zoom_view_;
+  QTimer play_timer_;
   int current_frame_;
-  TrackItem* current_item_;
 };
-
-
 #endif
+
