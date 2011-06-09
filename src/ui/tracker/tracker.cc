@@ -27,6 +27,7 @@
 #include "libmv/logging/logging.h"
 #include "libmv/image/image.h"
 #include "libmv/tracking/klt_region_tracker.h"
+#include "libmv/tracking/trklt_region_tracker.h"
 #include "libmv/tracking/pyramid_region_tracker.h"
 #include "libmv/tracking/retrack_region_tracker.h"
 
@@ -82,12 +83,12 @@ bool CopyRegionFromQImage(QImage image,
 
 // TODO(MatthiasF) shouldn't this be moved to RegionTracker API ?
 libmv::RegionTracker *CreateRegionTracker() {
-  libmv::KltRegionTracker *klt_region_tracker = new libmv::KltRegionTracker;
-  klt_region_tracker->half_window_size = 5;
-  klt_region_tracker->max_iterations = 200;
+  libmv::TrkltRegionTracker *trklt_region_tracker = new libmv::TrkltRegionTracker;
+  trklt_region_tracker->half_window_size = 5;
+  trklt_region_tracker->max_iterations = 200;
 
   libmv::PyramidRegionTracker *pyramid_region_tracker =
-      new libmv::PyramidRegionTracker(klt_region_tracker, 3);
+      new libmv::PyramidRegionTracker(trklt_region_tracker, 3);
   return new libmv::RetrackRegionTracker(pyramid_region_tracker, 0.2);
 }
 
@@ -123,7 +124,7 @@ Tracker::Tracker(QObject *parent)
 Tracker::~Tracker() {}
 
 void Tracker::Load(QByteArray data) {
-  Marker *markers = static_cast<Marker *>(data.constData());
+  const Marker *markers = reinterpret_cast<const Marker *>(data.constData());
   for (size_t i = 0; i < data.size() / sizeof(Marker); ++i) {
     Marker marker = markers[i];
     tracks_->Insert(marker.image, marker.track, marker.x, marker.y);
@@ -133,7 +134,7 @@ void Tracker::Load(QByteArray data) {
 // World's most ghetto serialization, but it does the job!
 QByteArray Tracker::Save() {
   std::vector<Marker> markers = tracks_->AllMarkers();
-  return QByteArray(static_cast<char *>(markers.data()),
+  return QByteArray(reinterpret_cast<char *>(markers.data()),
                     markers.size() * sizeof(Marker));
 }
 
