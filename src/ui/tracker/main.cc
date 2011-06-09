@@ -173,11 +173,15 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::open() {
-  open(QFileDialog::getExistingDirectory(this,"Select sequence folder"));
+  QString dir = QFileDialog::getExistingDirectory(this,
+                                                  "Select sequence folder");
+  if (!dir.isNull()) {
+    open(dir);
+  }
 }
 
 void MainWindow::open(QString path) {
-  if(!QDir(path).exists()) {
+  if (!QDir(path).exists()) {
     open();
     return;
   }
@@ -185,13 +189,13 @@ void MainWindow::open(QString path) {
   pixmap_ = 0;
   path_ = path;
   clip_->Open(path);
-  if(clip_->size() == 0) {
+  if (clip_->size() == 0) {
     open();
     return;
   }
-  QFile tracks(path+"/tracks");
-  if(tracks.open(QFile::ReadOnly)) {
-    tracker_->Load( tracks.readAll() );
+  QFile tracks(path + "/tracks");
+  if (tracks.open(QFile::ReadOnly)) {
+    tracker_->Load(tracks.readAll());
   }
   spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
@@ -231,7 +235,7 @@ void MainWindow::seek(int frame) {
 
 void MainWindow::toggleTracking(bool track) {
   stop();
-  if(track) {
+  if (track) {
     backward_action_->setText("Track sequence backwards");
     forward_action_->setText("Track sequence forwards");
   } else {

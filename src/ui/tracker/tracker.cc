@@ -114,23 +114,27 @@ void TrackItem::paint(QPainter *painter, const QStyleOptionGraphicsItem*, QWidge
 
 /// Tracker
 
-Tracker::Tracker(QObject *parent) : QGraphicsScene(parent),
-  tracks_(new libmv::Tracks()),
-  region_tracker_(CreateRegionTracker()),
-  current_item_(0) {}
+Tracker::Tracker(QObject *parent)
+  : QGraphicsScene(parent),
+    tracks_(new libmv::Tracks()),
+    region_tracker_(CreateRegionTracker()),
+    current_item_(0) {}
+
 Tracker::~Tracker() {}
 
-void Tracker::Load( QByteArray data ) {
-  Marker* markers = (Marker*)data.constData();
-  for(size_t i=0; i<data.size()/sizeof(Marker); i++) {
+void Tracker::Load(QByteArray data) {
+  Marker *markers = static_cast<Marker *>(data.constData());
+  for (size_t i = 0; i < data.size() / sizeof(Marker); ++i) {
     Marker marker = markers[i];
     tracks_->Insert(marker.image, marker.track, marker.x, marker.y);
   }
 }
 
+// World's most ghetto serialization, but it does the job!
 QByteArray Tracker::Save() {
   std::vector<Marker> markers = tracks_->AllMarkers();
-  return QByteArray((char*)markers.data(), markers.size()*sizeof(Marker));
+  return QByteArray(static_cast<char *>(markers.data()),
+                    markers.size() * sizeof(Marker));
 }
 
 void Tracker::SetFrame(int frame, QImage image, bool track) {
@@ -143,11 +147,13 @@ void Tracker::SetFrame(int frame, QImage image, bool track) {
   int previous_frame = current_frame_;
   current_frame_ = frame;
 
-  // track active trackers from the previous frame into this one.
+  // Track active trackers from the previous frame into this one.
   if (track) {
     vector<Marker> previous_markers = tracks_->MarkersInImage(previous_frame);
     foreach (const Marker &marker, previous_markers) {
-      if( !track_items_[marker.track]->isSelected() ) continue;
+      if (!track_items_[marker.track]->isSelected()) {
+        continue;
+      }
       // TODO(keir): For now this uses a fixed size region. What's needed is
       // an extension to use custom sized boxes around the tracked point.
       int size = 64;
