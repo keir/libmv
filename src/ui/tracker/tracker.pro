@@ -21,7 +21,7 @@ MOC_DIR=build
 RCC_DIR=build
 DESTDIR=build
 
-OTHER_FILES += CMakeLists.txt
+OTHER_FILES += CMakeLists.txt ../../libmv/simple_pipeline/CMakeLists.txt
 OTHER_FILES += ../../libmv/image/image_pyramid.cc ../../libmv/image/image_pyramid.h
 OTHER_FILES += ../../libmv/image/convolve.cc ../../libmv/image/convolve.h
 OTHER_FILES += ../../libmv/simple_pipeline/*.h ../../libmv/simple_pipeline/*.cc
