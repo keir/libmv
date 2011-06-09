@@ -25,86 +25,74 @@
 
 namespace libmv {
 
-/*!
-    The Marker structure represents a 2D reconstruction marker.
-
-    x, y represents the position of the marker (measured in pixels, from the
-    top left corner) in the image identified by \l image.
-    All markers which corresponds to the same target form a track identified by
-    a common \l track number.
-
-    \note Markers are typically aggregated with the help of the \l Tracks class.
-
-    \sa Tracks
-*/
+/**
+ * A Marker is the 2D location of a tracked point in an image.
+ *
+ * \a x, \a y is the position of the marker in pixels from the top left corner
+ * in the image identified by \l image. All markers for to the same target
+ * form a track identified by a common \l track number.
+ *
+ * \note Markers are typically aggregated with the help of the \l Tracks class.
+ *
+ * \sa Tracks
+ */
 struct Marker {
   int image;
   int track;
   double x, y;
 };
 
-/*!
-    The Tracks class provides an abstraction for the storage of
-    \l{Marker}{reconstruction markers}.
-
-    It is a container to be used for both matchmoving and multiview purposes.
-    It will provide fast lookup of the markers from image and track keys.
-
-    To insert or edit a marker, use \l Insert().
-    You can retrieve markers using \l MarkersInImage() and \l MarkersInTrack().
-    \l MarkersForTracksInBothImages() is provided to conveniently retrieve
-    matching tracks.
-    All markers belonging to a track can be removed using
-    \l RemoveMarkersForTrack().
-
-    \sa Marker
-*/
+/**
+ * The Tracks class stores \l{Marker}{reconstruction markers}.
+ *
+ * The Tracks container is intended as the store of correspondences between
+ * images, which must get created before any 3D reconstruction can take place.
+ *
+ * The container has several fast lookups for queries typically needed for
+ * structure from motion algorithms, such as \l MarkersForTracksInBothImages().
+ *
+ * \sa Marker
+ */
 class Tracks {
  public:
-/*!
-    Inserts a marker into the set.
-
-    \a image and \a track are the keys used to retrieve the markers.
-    \note You can also use this method to edit existing markers.
-    \note You can generate a new track identifier using \l MaxTrack() + 1
-*/
+  /**
+   * Inserts a marker into the set. If there is already a marker for the given
+   * \a image and \a track, the existing marker is replaced. If there is no
+   * marker for the given \a image and \a track, a new one is added.
+   *
+   * \a image and \a track are the keys used to retrieve the markers with the
+   * other methods in this class.
+   *
+   * \note To get an identifier for a new track, use \l MaxTrack() + 1.
+   */
   void Insert(int image, int track, double x, double y);
 
-/*!
-    Returns an std::vector containing all markers for a reconstruction.
-*/
+  /** Returns all the markers. */
   std::vector<Marker> AllMarkers();
-/*!
-    Returns an std::vector containing all markers belonging to a track.
-*/
-  std::vector<Marker> MarkersInTrack(int track);
-/*!
-    Returns an std::vector containing all markers visible in an image.
-*/
-  std::vector<Marker> MarkersInImage(int image);
-/*!
-    Returns an std::vector containing all markers for tracks visible in both images.
 
-    \a image1 and \a image2 are the identifiers used when the markers were inserted.
-*/
+  /** Returns all the markers belonging to a track. */
+  std::vector<Marker> MarkersInTrack(int track);
+
+  /** Returns all the markers visible in \a image. */
+  std::vector<Marker> MarkersInImage(int image);
+
+  /**
+   * Returns all the markers in \a image1 and \a image2 which have a common track.
+   *
+   * \a image1 and \a image2 are the identifiers used when the markers were inserted.
+   */
   std::vector<Marker> MarkersForTracksInBothImages(int image1, int image2);
 
-/*!
-    Removes all markers belonging to \a track.
-*/
+  /** Removes all the markers belonging to \a track. */
   void RemoveMarkersForTrack(int track);
-/*!
-    Removes the marker in \a image belonging to \a track.
-*/
+
+  /*! Removes the marker in \a image belonging to \a track. */
   void RemoveMarker(int image, int track);
 
-/*!
-    Returns the maximum image identifier used.
-*/
+  /** Returns the maximum image identifier used. */
   int MaxImage() const;
-/*!
-    Returns the maximum track identifier used.
-*/
+
+  /** Returns the maximum track identifier used. */
   int MaxTrack() const;
 
  private:
