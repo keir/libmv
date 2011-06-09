@@ -9,6 +9,7 @@ TARGET_LINK_LIBRARIES(qt-tracker
                       ${QT_QTGUI_LIBRARY}
                       simple_pipeline
                       tracking
+                      multiview
                       image
                       gflags
                       glog)

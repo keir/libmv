@@ -18,6 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+#include "libmv/simple_pipeline/reconstruction.h"
+
 #include <vector>
 
 #include "libmv/numeric/numeric.h"
@@ -25,7 +27,7 @@
 namespace libmv {
 
 // Start out with some space.
-Reconstruction() : cameras_(1000), points_(1000) {}
+Reconstruction::Reconstruction() : cameras_(1000), points_(1000) {}
 
 void Reconstruction::InsertCamera(int image, const Mat3 &R, const Vec3 &t) {
   if (image >= cameras_.size()) {
@@ -44,12 +46,12 @@ void Reconstruction::InsertPoint(int track, const Vec3 &X) {
   points_[track].X = X;
 }
 
-const Camera *Reconstruction::CameraForImage(int image) {
-  return (cameras_[image] == -1) ? NULL : &cameras_[image];
+Reconstruction::Camera *Reconstruction::CameraForImage(int image) {
+  return (cameras_[image].image == -1) ? NULL : &cameras_[image];
 }
 
-const Point *Reconstruction::PointForTrack(int track) {
-  return (points_[track] == -1) ? NULL : &points_[track];
+Reconstruction::Point *Reconstruction::PointForTrack(int track) {
+  return (points_[track].track == -1) ? NULL : &points_[track];
 }
 
 }  // namespace libmv

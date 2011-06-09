@@ -30,13 +30,13 @@ class RegionTracker {
   RegionTracker() {}
   virtual ~RegionTracker() {}
 
-/*!
-    Track a point from image1 to image2
+  /*!
+      Track a point from \a image1 to \a image2.
 
-    \a x2, \a y2 should start out as a best guess for the position in \a image2.
-    If no guess is available \a x1, \a y1 is a good start.
-    Returns true on success, false otherwise
-*/
+      \a x2, \a y2 should start out as a best guess for the position in \a
+      image2. If no guess is available, (\a x1, \a y1) is a good start. Returns
+      true on success, false otherwise
+  */
   virtual bool Track(const FloatImage &image1,
                      const FloatImage &image2,
                      double  x1, double  y1,

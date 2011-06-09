@@ -18,102 +18,41 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include <cmath>
-#include "libmv/multiview/homography.h"
+#include <vector>
+
+#include "libmv/numeric/numeric.h"
 #include "libmv/multiview/fundamental.h"
+#include "libmv/simple_pipeline/tracks.h"
+#include "libmv/simple_pipeline/reconstruction.h"
+
+using std::vector;
 
 namespace libmv {
 
-void CoordinatesForMarkersInImage(const vector<Markers> &markers,
+void CoordinatesForMarkersInImage(const vector<Marker> &markers,
                                   int image,
                                   Mat *coordinates) {
+  (void) markers;
+  (void) image;
+  (void) coordinates;
   // XXX
 }
 
-int image1, image2;
-GetImagesInMarkers(markers, &image1, &image2);
-
-double GRIC(const vector<double> &normalized_squared_residuals,
-            int dimensions,
-            int degrees_of_freedom,
-            int dimension_of_data,
-            double residual_cutoff) {
-  double d = dimensions;
-  double n = normalized_squared_residuals.size();
-  double k = dimensions;
-  double r = dimension_of_data;
-  double threshold = residual_cutoff * (r - d);
-
-  double e = 0;
-  for (int i = 0; i < normalized_squared_residuals.size(); ++i) {
-    e += min(normalized_squared_residuals[i], threshold);
+void GetImagesInMarkers(const vector<Marker> &markers,
+                        int *image1, int *image2) {
+  if (markers.empty()) {
+    return;
   }
-  return e + log(r) * d * n + log(r * n) * k;
-}
-
-// See page 287 equation (11.9) of Hartley & Zisserman.
-static double SampsonError(const Mat3 &F, const Vec2 &x1, const Vec2 &x2) {
-  Vec3 x(x1(0), x1(1), 1.0);
-  Vec3 y(x2(0), x2(1), 1.0);
-  Vec3 F_x = F * x;
-  Vec3 Ft_y = F.transpose() * y;
-  return Square(y.dot(F_x)) / (  F_x.head<2>().squaredNorm()
-                              + Ft_y.head<2>().squaredNorm());
-}
-
-double ComputeFGRIC(const vector<Markers> &markers) {
-  int image1, image2;
-  GetImagesInMarkers(markers, &image1, &image2);
-
-  Mat x1, x2;
-  CoordinatesForMarkersInImage(markers, image1, &x1);
-  CoordinatesForMarkersInImage(markers, image2, &x2);
-
-  Mat3 F;
-  NormalizedEightPointSolver(x1, x2, &F);
-
-  vector<double> residuals(x1.cols());
-  for (int i = 0; i < x1.cols(); ++i) {
-    residuals[i] = SampsonError(F, x1.col(i), x2.col(i));
-
-    // Dangerous hack alert: Hardcoding 0.1 expected variance (0.31 stddev).
-    residuals[i] /= 0.1;
+  *image1 = markers[0].image;
+  for (int i = 1; i < markers.size(); ++i) {
+    if (markers[i].image != *image1) {
+      *image2 = markers[i].image;
+      return;
+    }
   }
-  return GRIC(residuals, 3, 7, 4, 100 /* cutoff big; no outliers assumed. */);
 }
 
-static double HomographyError(const Mat3 &H, const Vec2 &x1, const Vec2 &x2) {
-  Vec3 x(x1(0), x1(1), 1.0);
-  Vec3 z = H * x;
-  z(0) /= z(2);
-  z(1) /= z(2);
-  double dx = z(0) - y(0);
-  double dy = z(1) - y(1);
-  return dx*dx + dy*dy;
-}
-
-double ComputeHGRIC(const vector<Markers> &markers) {
-  int image1, image2;
-  GetImagesInMarkers(markers, &image1, &image2);
-
-  Mat x1, x2;
-  CoordinatesForMarkersInImage(markers, image1, &x1);
-  CoordinatesForMarkersInImage(markers, image2, &x2);
-
-  Mat3 H;
-  Homography2DFromCorrespondencesLinear(x1, x2, &H);
-
-  vector<double> residuals(x1.cols());
-  for (int i = 0; i < x1.cols(); ++i) {
-    residuals[i] = HomographyError(F, x1.col(i), x2.col(i));
-
-    // Dangerous hack alert: Hardcoding 0.1 expected variance (0.31 stddev).
-    residuals[i] /= 0.1;
-  }
-  return GRIC(residuals, 2, 8, 4, 100 /* cutoff big; no outliers assumed. */);
-}
-
-bool ReconstructTwoFrames(const vector<Markers> &markers,
+bool ReconstructTwoFrames(const vector<Marker> &markers,
                           Reconstruction *reconstruction) {
   if (markers.size() < 8) {
     return false;
@@ -127,7 +66,10 @@ bool ReconstructTwoFrames(const vector<Markers> &markers,
   CoordinatesForMarkersInImage(markers, image2, &x2);
 
   Mat3 F, E;
-  EightPointSolver(x1, x2, &F) {
+  NormalizedEightPointSolver(x1, x2, &F);
+
+  // XXX Broken!
+  Mat3 K1, K2;
   EssentialFromFundamental(F, K1, K2, &E);
 
   // Recover motion between the two images
@@ -145,19 +87,29 @@ bool ReconstructTwoFrames(const vector<Markers> &markers,
 
   reconstruction->CameraForImage(image2)->image = image2;
   reconstruction->CameraForImage(image2)->R = dR;
-  reconstruction->CameraForImage(image2)->t = dT;
+  reconstruction->CameraForImage(image2)->t = dt;
+
+  return true;
 }
 
 void Bundle(const Tracks &tracks, Reconstruction *reconstruction) {
+  (void) tracks;
+  (void) reconstruction;
   // XXX
 }
 
 bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
+  (void) markers;
+  (void) reconstruction;
   // XXX
+  return true;
 }
 
 bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
+  (void) markers;
+  (void) reconstruction;
   // XXX
+  return true;
 }
 
 }  // namespace libmv

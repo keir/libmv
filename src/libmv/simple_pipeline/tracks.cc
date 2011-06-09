@@ -46,7 +46,7 @@ void Tracks::Insert(int image, int track, double x, double y) {
   markers_.push_back(marker);
 }
 
-vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) {
+vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) const {
   vector<int> image1_tracks;
   vector<int> image2_tracks;
 
@@ -78,7 +78,7 @@ vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) {
   return markers;
 }
 
-vector<Marker> Tracks::MarkersInImage(int image) {
+vector<Marker> Tracks::MarkersInImage(int image) const {
   vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (image == markers_[i].image) {
@@ -88,7 +88,7 @@ vector<Marker> Tracks::MarkersInImage(int image) {
   return markers;
 }
 
-vector<Marker> Tracks::MarkersInTrack(int track) {
+vector<Marker> Tracks::MarkersInTrack(int track) const {
   vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
     if (track == markers_[i].track) {
@@ -98,7 +98,7 @@ vector<Marker> Tracks::MarkersInTrack(int track) {
   return markers;
 }
 
-vector<Marker> Tracks::AllMarkers() {
+vector<Marker> Tracks::AllMarkers() const {
   return markers_;
 }
 

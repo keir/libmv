@@ -26,20 +26,22 @@
 
 namespace libmv {
 
-/**
- * Pick a random subset of the integers [0, total), in random order.
- * Note that this can behave badly if num_samples is close to total; runtime
- * could be unlimited!
- *
- * This uses a quadratic rejection strategy and should only be used for small
- * num_samples.
- *
- * \param num_samples   The number of samples to produce.
- * \param total_samples The number of samples available.
- * \param samples       num_samples of numbers in [0, total_samples) is placed
- *                      here on return.
- */
-static void UniformSample(int num_samples, int total_samples, vector<int> *samples) {
+/*!
+    Pick a random subset of the integers [0, total), in random order. Note that
+    this can behave badly if num_samples is close to total; runtime could be
+    unlimited!
+  
+    This uses a quadratic rejection strategy and should only be used for small
+    num_samples.
+  
+    \param num_samples   The number of samples to produce.
+    \param total_samples The number of samples available.
+    \param samples       num_samples of numbers in [0, total_samples) is placed
+                         here on return.
+*/
+static void UniformSample(int num_samples,
+                          int total_samples,
+                          vector<int> *samples) {
   samples->resize(0);
   while (samples->size() < num_samples) {
     int sample = rand() % total_samples;

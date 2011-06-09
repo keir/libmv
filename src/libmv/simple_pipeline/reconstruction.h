@@ -23,13 +23,15 @@
 
 #include <vector>
 
+#include "libmv/numeric/numeric.h"
+
 namespace libmv {
 
 class Reconstruction {
  public:
   struct Camera {
     Camera() : image(-1) {}
-    Camera(const Camera &c) : image(c.image), R(c.R), t(c.T) {}
+    Camera(const Camera &c) : image(c.image), R(c.R), t(c.t) {}
 
     int image;
     Mat3 R;
@@ -50,8 +52,8 @@ class Reconstruction {
   Point *PointForTrack(int track);
 
  private:
-  vector<Camera> cameras_;
-  vector<Point> points_;
+  std::vector<Camera> cameras_;
+  std::vector<Point> points_;
 };
 
 }  // namespace libmv
