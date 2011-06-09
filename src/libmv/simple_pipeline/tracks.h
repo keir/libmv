@@ -25,74 +25,75 @@
 
 namespace libmv {
 
-/**
- * A Marker is the 2D location of a tracked point in an image.
- *
- * \a x, \a y is the position of the marker in pixels from the top left corner
- * in the image identified by \l image. All markers for to the same target
- * form a track identified by a common \l track number.
- *
- * \note Markers are typically aggregated with the help of the \l Tracks class.
- *
- * \sa Tracks
- */
+/*!
+    A Marker is the 2D location of a tracked point in an image.
+  
+    \a x, \a y is the position of the marker in pixels from the top left corner
+    in the image identified by \l image. All markers for to the same target
+    form a track identified by a common \l track number.
+  
+    \note Markers are typically aggregated with the help of the \l Tracks class.
+  
+    \sa Tracks
+*/
 struct Marker {
   int image;
   int track;
   double x, y;
 };
 
-/**
- * The Tracks class stores \l{Marker}{reconstruction markers}.
- *
- * The Tracks container is intended as the store of correspondences between
- * images, which must get created before any 3D reconstruction can take place.
- *
- * The container has several fast lookups for queries typically needed for
- * structure from motion algorithms, such as \l MarkersForTracksInBothImages().
- *
- * \sa Marker
- */
+/*!
+    The Tracks class stores \link Marker reconstruction markers \endlink.
+    
+    The Tracks container is intended as the store of correspondences between
+    images, which must get created before any 3D reconstruction can take place.
+    
+    The container has several fast lookups for queries typically needed for
+    structure from motion algorithms, such as \l MarkersForTracksInBothImages().
+    
+    \sa Marker
+*/
 class Tracks {
  public:
-  /**
-   * Inserts a marker into the set. If there is already a marker for the given
-   * \a image and \a track, the existing marker is replaced. If there is no
-   * marker for the given \a image and \a track, a new one is added.
-   *
-   * \a image and \a track are the keys used to retrieve the markers with the
-   * other methods in this class.
-   *
-   * \note To get an identifier for a new track, use \l MaxTrack() + 1.
-   */
+  /*!
+      Inserts a marker into the set. If there is already a marker for the given
+      \a image and \a track, the existing marker is replaced. If there is no
+      marker for the given \a image and \a track, a new one is added.
+    
+      \a image and \a track are the keys used to retrieve the markers with the
+      other methods in this class.
+    
+      \note To get an identifier for a new track, use \l MaxTrack() + 1.
+  */
   void Insert(int image, int track, double x, double y);
 
-  /** Returns all the markers. */
+  /// Returns all the markers.
   std::vector<Marker> AllMarkers();
 
-  /** Returns all the markers belonging to a track. */
+  /// Returns all the markers belonging to a track.
   std::vector<Marker> MarkersInTrack(int track);
 
-  /** Returns all the markers visible in \a image. */
+  /// Returns all the markers visible in \a image.
   std::vector<Marker> MarkersInImage(int image);
 
-  /**
-   * Returns all the markers in \a image1 and \a image2 which have a common track.
-   *
-   * \a image1 and \a image2 are the identifiers used when the markers were inserted.
-   */
+  /*!
+      Returns the markers in \a image1 and \a image2 which have a common track.
+      
+      This is not the same as the union of the markers in \a image1 and \a
+      image2; each marker is for a track that appears in both images.
+  */
   std::vector<Marker> MarkersForTracksInBothImages(int image1, int image2);
 
-  /** Removes all the markers belonging to \a track. */
+  /// Removes all the markers belonging to \a track.
   void RemoveMarkersForTrack(int track);
 
-  /*! Removes the marker in \a image belonging to \a track. */
+  /// Removes the marker in \a image belonging to \a track.
   void RemoveMarker(int image, int track);
 
-  /** Returns the maximum image identifier used. */
+  /// Returns the maximum image identifier used.
   int MaxImage() const;
 
-  /** Returns the maximum track identifier used. */
+  /// Returns the maximum track identifier used.
   int MaxTrack() const;
 
  private:
