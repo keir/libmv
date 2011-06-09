@@ -70,7 +70,7 @@ static void ComputeTrackingEquation(const Array3Df &image_and_gradient1,
     }
   }
 
-  // In the paper they show a D matrix, but it is just B inverse, so use that
+  // In the paper they show a D matrix, but it is just B transpose, so use that
   // instead of explicitly computing D.
   Mat2f Di = B.transpose().inverse();
 
