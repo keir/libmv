@@ -47,8 +47,7 @@ class Clip : public QObject {
 
     image_filenames_.clear();
     foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
-                                  QDir::Files,
-                                  QDir::Name)) {
+                                                QDir::Files, QDir::Name)) {
       image_filenames_ << QDir(path).filePath(file);
     }
   }
@@ -106,21 +105,21 @@ MainWindow::MainWindow()
 
   toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
-  QToolButton* deleteButton = new QToolButton;
-  QMenu* deletePopup = new QMenu(this);
-  deletePopup->addAction(QIcon(":/delete"),
+  QToolButton* delete_button = new QToolButton;
+  QMenu* delete_popup = new QMenu(this);
+  delete_popup->addAction(QIcon(":/delete"),
                          "Delete current marker",
                          tracker_, SLOT(deleteCurrentMarker()));
-  QAction* deleteTrack = deletePopup->addAction(QIcon(":/delete-row"),
+  QAction* delete_track = delete_popup->addAction(QIcon(":/delete-row"),
                                                 "Delete current track",
                                                 tracker_,
                                                 SLOT(deleteCurrentTrack()));
-  deleteButton->setMenu(deletePopup);
-  deleteButton->setDefaultAction(deleteTrack);
-  deleteButton->setPopupMode(QToolButton::MenuButtonPopup);
-  connect(deletePopup,SIGNAL(triggered(QAction*)),
-          deleteButton,SLOT(setDefaultAction(QAction*)));
-  toolbar->addWidget(deleteButton);
+  delete_button->setMenu(delete_popup);
+  delete_button->setDefaultAction(delete_track);
+  delete_button->setPopupMode(QToolButton::MenuButtonPopup);
+  connect(delete_popup,SIGNAL(triggered(QAction*)),
+          delete_button,SLOT(setDefaultAction(QAction*)));
+  toolbar->addWidget(delete_button);
   track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
@@ -167,21 +166,17 @@ MainWindow::~MainWindow() {
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
   QFile tracks(path_+"/tracks");
-  if(tracks.open(QFile::WriteOnly|QIODevice::Truncate)) {
+  if (tracks.open(QFile::WriteOnly | QIODevice::Truncate)) {
     tracks.write(tracker_->Save());
   }
 }
 
 void MainWindow::open() {
-  QString dir = QFileDialog::getExistingDirectory(this,
-                                                  "Select sequence folder");
-  if (!dir.isNull()) {
-    open(dir);
-  }
+  open(QFileDialog::getExistingDirectory(this, "Select sequence folder"));
 }
 
 void MainWindow::open(QString path) {
-  if (!QDir(path).exists()) {
+  if (path.isNull() || !QDir(path).exists()) {
     open();
     return;
   }
@@ -212,7 +207,7 @@ void MainWindow::seek(int frame) {
     return;
   }
   // Track only if the shift is between consecutive frames.
-  if( frame > current_frame_ + 1 || frame < current_frame_ - 1 ) {
+  if ( frame > current_frame_ + 1 || frame < current_frame_ - 1 ) {
     track_action_->setChecked(false);
   }
   current_frame_ = frame;

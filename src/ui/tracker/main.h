@@ -61,17 +61,17 @@ class MainWindow : public QMainWindow {
   void open(QString);
 
   QString path_;
-  Clip* clip_;
-  Tracker* tracker_;
+  Clip *clip_;
+  Tracker *tracker_;
   QGraphicsPixmapItem *pixmap_;
 
-  QAction* track_action_;
-  QAction* backward_action_;
-  QAction* forward_action_;
+  QAction *track_action_;
+  QAction *backward_action_;
+  QAction *forward_action_;
   QSpinBox spinbox_;
   QSlider slider_;
-  View* view_;
-  View* zoom_view_;
+  View *view_;
+  View *zoom_view_;
   QTimer previous_timer_;
   QTimer next_timer_;
   int current_frame_;
