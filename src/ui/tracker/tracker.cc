@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include "tracker.h"
+#include "ui/tracker/tracker.h"
 
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
@@ -247,7 +247,9 @@ void Tracker::deleteCurrentTrack() {
 void Tracker::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
   QGraphicsScene::mousePressEvent(mouseEvent);
   if (mouseEvent->isAccepted()) {
-    if(!selectedItems().isEmpty()) {
+    if(selectedItems().isEmpty()) {
+      current_item_ = 0;
+    } else {
       current_item_ = static_cast<TrackItem*>(selectedItems().first());
       emit trackChanged(current_item_);
     }
@@ -260,10 +262,10 @@ void Tracker::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
   int new_track = tracks_->MaxTrack() + 1;
 
   TrackItem* item = current_item_ = new TrackItem(new_track);
-  item->setPos(x, y);
-  item->setSelected(true);
   track_items_[new_track] = item;
   addItem(item);
+  item->setPos(x, y);
+  item->setSelected(true);
 
   tracks_->Insert(current_frame_, new_track, x, y);
   emit trackChanged(current_item_);
@@ -284,6 +286,5 @@ void Tracker::mouseReleaseEvent(QGraphicsSceneMouseEvent *mouseEvent) {
                     current_item_->pos().x(),
                     current_item_->pos().y());
   }
-  if(selectedItems().isEmpty()) current_item_ = 0;
 }
 

@@ -18,61 +18,47 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef UI_TRACKER_MAIN_H_
-#define UI_TRACKER_MAIN_H_
+#ifndef UI_TRACKER_MULTIVIEW_H_
+#define UI_TRACKER_MULTIVIEW_H_
 
-#include <QApplication>
-#include <QMainWindow>
-#include <QToolBar>
-#include <QSpinBox>
-#include <QAction>
-#include <QSlider>
+#include <QGLWidget>
 #include <QTimer>
+#include "gl.h"
 
-class Clip;
-class Tracker;
-class TrackerView;
-class QGraphicsItem;
-class QGraphicsPixmapItem;
+namespace libmv {
+class Reconstruction;
+} // namespace libmv
 
-class MainWindow : public QMainWindow {
+class View : public QGLWidget {
   Q_OBJECT
  public:
-  MainWindow();
-  ~MainWindow();
+  View(QWidget *parent = 0);
+  ~View();
 
- public slots:
-  void open();
-  void open(QString);
-  void seek(int);
-  void toggleTracking(bool);
-  void toggleBackward(bool);
-  void toggleForward(bool);
-  void first();
-  void previous();
-  void next();
-  void last();
-  void stop();
-  void viewTrack(QGraphicsItem*);
-
+  /*void Load(QByteArray data);
+  QByteArray Save();*/
+  
  protected:
-  void resizeEvent(QResizeEvent *);
+  void paintGL();
+  void keyPressEvent(QKeyEvent*);
+  void keyReleaseEvent(QKeyEvent*);
+  void mousePressEvent(QMouseEvent*);
+  void mouseMoveEvent(QMouseEvent*);
+  void mouseReleaseEvent(QMouseEvent*);
+  void timerEvent(QTimerEvent*);
 
-  QString path_;
-  Clip *clip_;
-  Tracker *tracker_;
-  QGraphicsPixmapItem *pixmap_;
-  int current_frame_;
+ private:
+  QScopedPointer<libmv::Reconstruction> reconstruction_;
 
-  QAction *track_action_;
-  QAction *backward_action_;
-  QAction *forward_action_;
-  QSpinBox spinbox_;
-  QSlider slider_;
-  TrackerView *view_;
-  TrackerView *zoom_view_;
-  QTimer previous_timer_;
-  QTimer next_timer_;
+  QPoint drag;
+  bool grab;
+  float pitch,yaw,speed;
+  int walk,strafe,jump;
+  vec3 position;
+  vec3 velocity;
+  vec3 momentum;
+  QBasicTimer timer;
+  mat4 projection,view;
 };
-#endif
 
+#endif

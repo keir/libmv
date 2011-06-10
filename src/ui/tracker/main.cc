@@ -18,8 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include "main.h"
-#include "tracker.h"
+#include "ui/tracker/main.h"
+#include "ui/tracker/tracker.h"
+#include "ui/tracker/view.h"
 
 #include <QDesktopWidget>
 #include <QGraphicsPixmapItem>
@@ -62,16 +63,17 @@ class Clip : public QObject {
   }
 
   int size() const { return image_filenames_.size(); }
+  int isEmpty() const { return image_filenames_.isEmpty(); }
 
  private:
   QList<QString> image_filenames_;
   QCache<int, QImage> cache_;
 };
 
-class View : public QGraphicsView {
+class TrackerView : public QGraphicsView {
 public:
-  View(QGraphicsScene *scene) {
-    setScene(scene);
+  TrackerView(QGraphicsScene *scene,QWidget *parent = 0)
+    : QGraphicsView(scene,parent) {
     setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
     setFrameShape(QFrame::NoFrame);
     setDragMode(QGraphicsView::ScrollHandDrag);
@@ -83,9 +85,9 @@ public:
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
     tracker_(new Tracker(this)),
-    view_(new View(tracker_)),
-    zoom_view_(new View(tracker_)),
-    current_frame_(-1) {
+    pixmap_(0), current_frame_(-1),
+    view_(new TrackerView(tracker_,this)),
+    zoom_view_(new TrackerView(tracker_,this)) {
   connect(tracker_, SIGNAL(trackChanged(QGraphicsItem*)), SLOT(viewTrack(QGraphicsItem*)));
 
   setWindowTitle("LibMV Simple Tracker");
@@ -153,18 +155,11 @@ MainWindow::MainWindow()
 
   restoreGeometry(QSettings().value("geometry").toByteArray());
   restoreState(QSettings().value("windowState").toByteArray());
-
-  QStringList args = qApp->arguments();
-  args.removeFirst();
-  if (args.isEmpty()) {
-    open();
-  } else {
-    open(args.first());
-  }
 }
 MainWindow::~MainWindow() {
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
+  if(clip_->isEmpty()) return;
   QFile tracks(path_+"/tracks");
   if (tracks.open(QFile::WriteOnly | QIODevice::Truncate)) {
     tracks.write(tracker_->Save());
@@ -176,18 +171,12 @@ void MainWindow::open() {
 }
 
 void MainWindow::open(QString path) {
-  if (path.isNull() || !QDir(path).exists()) {
-    open();
-    return;
-  }
-  tracker_->clear();
-  pixmap_ = 0;
-  path_ = path;
+  if (path.isNull() || !QDir(path).exists()) return;
   clip_->Open(path);
-  if (clip_->size() == 0) {
-    open();
-    return;
-  }
+  if(clip_->isEmpty()) return;
+  pixmap_ = 0;
+  tracker_->clear();
+  path_ = path;
   QFile tracks(path + "/tracks");
   if (tracks.open(QFile::ReadOnly)) {
     tracker_->Load(tracks.readAll());
@@ -289,7 +278,7 @@ void MainWindow::viewTrack(QGraphicsItem* item) {
 }
 
 void MainWindow::resizeEvent(QResizeEvent *) {
-  view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+  if(pixmap_) view_->fitInView(pixmap_, Qt::KeepAspectRatio);
 }
 
 int main(int argc, char *argv[]) {
@@ -297,6 +286,7 @@ int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
   MainWindow window;
   window.show();
+  window.open(app.arguments().value(1));
   return app.exec();
 }
 
