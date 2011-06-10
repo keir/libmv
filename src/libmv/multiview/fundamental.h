@@ -45,6 +45,13 @@ double FundamentalFromCorrespondences7Point(const Mat &x1,
                                             std::vector<Mat3> *F);
 
 /**
+ * 8 points (points coordinates must be in image space):
+ */
+double NormalizedEightPointSolver(const Mat &x1,
+                                  const Mat &x2,
+                                  Mat3 *F);
+
+/**
  * Fundamental matrix utility function:
  */
 void EnforceFundamentalRank2Constraint(Mat3 *F);

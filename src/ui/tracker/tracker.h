@@ -28,7 +28,7 @@
 namespace libmv {
 class Tracks;
 class RegionTracker;
-}
+} // namespace libmv
 
 class TrackItem : public QGraphicsItem {
 public:

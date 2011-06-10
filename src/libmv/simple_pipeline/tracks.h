@@ -29,8 +29,8 @@ namespace libmv {
     A Marker is the 2D location of a tracked point in an image.
   
     \a x, \a y is the position of the marker in pixels from the top left corner
-    in the image identified by \l image. All markers for to the same target
-    form a track identified by a common \l track number.
+    in the image identified by \a image. All markers for to the same target
+    form a track identified by a common \a track number.
   
     \note Markers are typically aggregated with the help of the \l Tracks class.
   
