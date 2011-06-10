@@ -36,82 +36,88 @@
 
 #include "libmv/tools/tool.h"
 
-class Clip : public QObject {
- public:
-  Clip(QObject* parent=0) : QObject(parent) {}
-  void Open(QString path) {
-    cache_.setMaxCost(128 * 1024 * 1024);
-    if (path.endsWith(".avi")) {
-      // TODO(MatthiasF): load videos using ffmpeg
-      return;
-    }
-
-    image_filenames_.clear();
-    foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
-                                                QDir::Files, QDir::Name)) {
-      image_filenames_ << QDir(path).filePath(file);
-    }
+void Clip::Open(QString path) {
+  cache_.setMaxCost(128 * 1024 * 1024);
+  if (path.endsWith(".avi")) {
+    // TODO(MatthiasF): load videos using ffmpeg
+    return;
   }
 
-  QImage Frame(int frame) {
-    QImage* image = cache_[frame];
-    if (!image) {
-      image = new QImage(image_filenames_[frame]);
-      cache_.insert(frame, image, image->byteCount());
-    }
-    return *image;
+  clear();
+  foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
+                                              QDir::Files, QDir::Name)) {
+    append( QDir(path).filePath(file) );
   }
+}
 
-  int size() const { return image_filenames_.size(); }
-  int isEmpty() const { return image_filenames_.isEmpty(); }
-
- private:
-  QList<QString> image_filenames_;
-  QCache<int, QImage> cache_;
-};
-
-class TrackerView : public QGraphicsView {
-public:
-  TrackerView(QGraphicsScene *scene,QWidget *parent = 0)
-    : QGraphicsView(scene,parent) {
-    setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
-    setFrameShape(QFrame::NoFrame);
-    setDragMode(QGraphicsView::ScrollHandDrag);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+QImage Clip::Frame(int frame) {
+  QImage* image = cache_[frame];
+  if (!image) {
+    image = new QImage(value(frame));
+    cache_.insert(frame, image, image->byteCount());
   }
-};
+  return *image;
+}
+
+TrackerView::TrackerView(QGraphicsScene *scene,QWidget *parent)
+  : QGraphicsView(scene,parent) {
+  setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
+  setDragMode(QGraphicsView::ScrollHandDrag);
+  setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+}
 
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
     tracker_(new Tracker(this)),
     pixmap_(0), current_frame_(-1),
-    view_(new TrackerView(tracker_,this)),
-    zoom_view_(new TrackerView(tracker_,this)) {
-  connect(tracker_, SIGNAL(trackChanged(QGraphicsItem*)), SLOT(viewTrack(QGraphicsItem*)));
-
-  setWindowTitle("LibMV Simple Tracker");
+    image_view_(new TrackerView(tracker_,this)),
+    zoom_view_(new TrackerView(tracker_,this)),
+    scene_view_(new View(this)) {
+  setWindowTitle("Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
 
-  QDockWidget* detail_dock = new QDockWidget("Selected Track Details");
-  detail_dock->setObjectName("detailDock");
-  addDockWidget(Qt::TopDockWidgetArea, detail_dock);
-  const int kZoomFactor = 2;
-  zoom_view_->setMinimumSize(kZoomFactor * TrackItem::kSearchWindowSize,
-                             kZoomFactor * TrackItem::kSearchWindowSize);
-  detail_dock->setWidget(zoom_view_);
-
-  // Create the toolbar.
   QToolBar* toolbar = addToolBar("Main Toolbar");
   toolbar->setObjectName("mainToolbar");
 
   toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
-  QToolButton* delete_button = new QToolButton;
+
+  setCentralWidget(image_view_);
+  image_view_->setVisible(QSettings().value("showImage").toBool());
+  QAction* image_action_ = toolbar->addAction(QIcon(":/view-image"),"Image View");
+  image_action_->setCheckable(true);
+  image_action_->setChecked(image_view_->isVisible());
+  connect(image_action_,SIGNAL(triggered(bool)),image_view_,SLOT(setVisible(bool)));
+  connect(image_view_, SIGNAL(geometryChanged()), SLOT(fitImage()));
+
+  QDockWidget* zoom_dock = new QDockWidget("Zoom View");
+  zoom_dock->setObjectName("zoomDock");
+  addDockWidget(Qt::TopDockWidgetArea, zoom_dock);
+  const int kZoomFactor = 2;
+  zoom_view_->setMinimumSize(kZoomFactor * TrackItem::kSearchWindowSize,
+                             kZoomFactor * TrackItem::kSearchWindowSize);
+  zoom_view_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
+  zoom_dock->setWidget(zoom_view_);
+  zoom_dock->toggleViewAction()->setIcon(QIcon(":/view-zoom"));
+  toolbar->addAction(zoom_dock->toggleViewAction());
+  connect(tracker_, SIGNAL(trackChanged(QGraphicsItem*)), SLOT(fitZoom(QGraphicsItem*)));
+
+  QDockWidget* scene_dock = new QDockWidget("Scene View");
+  scene_dock->setObjectName("sceneDock");
+  addDockWidget(Qt::BottomDockWidgetArea, scene_dock);
+  scene_dock->setWidget(scene_view_);
+  scene_dock->toggleViewAction()->setIcon(QIcon(":/view-scene"));
+  toolbar->addAction(scene_dock->toggleViewAction());
+
+  toolbar->addSeparator();
+
+  QToolButton* delete_button = new QToolButton();
+  toolbar->addWidget(delete_button);
   QMenu* delete_popup = new QMenu(this);
   delete_popup->addAction(QIcon(":/delete"),
-                         "Delete current marker",
-                         tracker_, SLOT(deleteCurrentMarker()));
+                          "Delete current marker",
+                          tracker_, SLOT(deleteCurrentMarker()));
   QAction* delete_track = delete_popup->addAction(QIcon(":/delete-row"),
                                                 "Delete current track",
                                                 tracker_,
@@ -121,10 +127,12 @@ MainWindow::MainWindow()
   delete_button->setPopupMode(QToolButton::MenuButtonPopup);
   connect(delete_popup,SIGNAL(triggered(QAction*)),
           delete_button,SLOT(setDefaultAction(QAction*)));
-  toolbar->addWidget(delete_button);
   track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
+  connect(image_action_, SIGNAL(triggered(bool)), track_action_, SLOT(setVisible(bool)));
+
+  toolbar->addSeparator();
 
   toolbar->addAction(QIcon(":/skip-backward"), "Seek to first frame",
                      this, SLOT(first()));
@@ -151,12 +159,11 @@ MainWindow::MainWindow()
       ->setShortcut(QKeySequence("Right"));
   toolbar->addAction(QIcon(":/skip-forward"), "Last Frame",this, SLOT(last()));
 
-  setCentralWidget(view_);
-
   restoreGeometry(QSettings().value("geometry").toByteArray());
   restoreState(QSettings().value("windowState").toByteArray());
 }
 MainWindow::~MainWindow() {
+  QSettings().setValue("showImage", image_view_->isVisible());
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
   if(clip_->isEmpty()) return;
@@ -171,12 +178,13 @@ void MainWindow::open() {
 }
 
 void MainWindow::open(QString path) {
-  if (path.isNull() || !QDir(path).exists()) return;
+  if (path.isEmpty() || !QDir(path).exists()) return;
   clip_->Open(path);
   if(clip_->isEmpty()) return;
   pixmap_ = 0;
   tracker_->clear();
   path_ = path;
+  setWindowTitle(QString("Tracker - %1").arg(QDir(path).dirName()));
   QFile tracks(path + "/tracks");
   if (tracks.open(QFile::ReadOnly)) {
     tracker_->Load(tracks.readAll());
@@ -205,8 +213,9 @@ void MainWindow::seek(int frame) {
   QImage image = clip_->Frame(current_frame_);
   if (!pixmap_) {
     pixmap_ = tracker_->addPixmap(QPixmap::fromImage(image));
-    view_->setMinimumSize(image.size()/2);
-    view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+    image_view_->setMinimumSize(image.size()/2);
+    image_view_->setMaximumSize(image.size());
+    image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
   } else {
     pixmap_->setPixmap(QPixmap::fromImage(image));
   }
@@ -271,19 +280,21 @@ void MainWindow::last() {
   seek(clip_->size() - 1);
 }
 
-void MainWindow::viewTrack(QGraphicsItem* item) {
+void MainWindow::fitZoom(QGraphicsItem* item) {
   if (!zoom_view_->hasFocus()) {
     zoom_view_->fitInView(item, Qt::KeepAspectRatio);
   }
 }
 
-void MainWindow::resizeEvent(QResizeEvent *) {
-  if(pixmap_) view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+void MainWindow::fitImage() {
+  if(pixmap_) image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
 }
 
 int main(int argc, char *argv[]) {
   libmv::Init("", &argc, &argv);
   QApplication app(argc, argv);
+  app.setOrganizationName("libmv");
+  app.setApplicationName("tracker");
   MainWindow window;
   window.show();
   window.open(app.arguments().value(1));

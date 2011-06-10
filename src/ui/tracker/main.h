@@ -23,17 +23,41 @@
 
 #include <QApplication>
 #include <QMainWindow>
+#include <QGraphicsView>
 #include <QToolBar>
 #include <QSpinBox>
 #include <QAction>
 #include <QSlider>
+#include <QCache>
 #include <QTimer>
 
-class Clip;
 class Tracker;
-class TrackerView;
 class QGraphicsItem;
+class QGraphicsScene;
 class QGraphicsPixmapItem;
+class View;
+
+class Clip : public QObject, public QList<QString>   {
+  Q_OBJECT
+ public:
+  Clip(QObject* parent=0) : QObject(parent) {}
+  void Open(QString path);
+  QImage Frame(int frame);
+ private:
+  QCache<int, QImage> cache_;
+};
+
+class TrackerView : public QGraphicsView {
+  Q_OBJECT
+ public:
+  TrackerView(QGraphicsScene *scene,QWidget *parent = 0);
+ signals:
+  void geometryChanged();
+ protected:
+  void resizeEvent(QResizeEvent*) {
+    emit geometryChanged();
+  }
+};
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -48,16 +72,15 @@ class MainWindow : public QMainWindow {
   void toggleTracking(bool);
   void toggleBackward(bool);
   void toggleForward(bool);
+  void stop();
   void first();
   void previous();
   void next();
   void last();
-  void stop();
-  void viewTrack(QGraphicsItem*);
+  void fitZoom(QGraphicsItem*);
+  void fitImage();
 
- protected:
-  void resizeEvent(QResizeEvent *);
-
+ private:
   QString path_;
   Clip *clip_;
   Tracker *tracker_;
@@ -69,8 +92,11 @@ class MainWindow : public QMainWindow {
   QAction *forward_action_;
   QSpinBox spinbox_;
   QSlider slider_;
-  TrackerView *view_;
+
+  TrackerView *image_view_;
   TrackerView *zoom_view_;
+  View* scene_view_;
+
   QTimer previous_timer_;
   QTimer next_timer_;
 };

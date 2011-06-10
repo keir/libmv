@@ -66,6 +66,7 @@ class Tracker : public QGraphicsScene {
   void mousePressEvent(QGraphicsSceneMouseEvent*);
   void mouseMoveEvent(QGraphicsSceneMouseEvent*);
   void mouseReleaseEvent(QGraphicsSceneMouseEvent*);
+  void mouseDoubleClickEvent(QGraphicsSceneMouseEvent*);
 
  private:
   QScopedPointer<libmv::Tracks> tracks_;
