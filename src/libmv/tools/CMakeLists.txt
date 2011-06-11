@@ -6,7 +6,7 @@ FILE(GLOB TOOLS_HDRS *.h)
 
 ADD_LIBRARY(tools ${TOOLS_SRC} ${TOOLS_HDRS})
 
-TARGET_LINK_LIBRARIES(tools)
+TARGET_LINK_LIBRARIES(tools OpenExif)
 
 # make the name of debug libraries end in _d.
 SET_TARGET_PROPERTIES(tools PROPERTIES DEBUG_POSTFIX "_d")

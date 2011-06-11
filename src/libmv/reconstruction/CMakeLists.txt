@@ -15,7 +15,7 @@ FILE(GLOB RECONSTRUCTION_HDRS *.h)
 
 ADD_LIBRARY(reconstruction ${RECONSTRUCTION_SRC} ${RECONSTRUCTION_HDRS})
 
-TARGET_LINK_LIBRARIES(reconstruction camera multiview numeric V3D colamd ldl glog)
+TARGET_LINK_LIBRARIES(reconstruction camera correspondence multiview numeric V3D colamd ldl glog)
 
 # make the name of debug libraries end in _d.
 SET_TARGET_PROPERTIES(reconstruction PROPERTIES DEBUG_POSTFIX "_d")
