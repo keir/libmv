@@ -205,16 +205,18 @@ void renderBox(GLShader& program, vec3 min=vec3(-1,-1,-1), vec3 max=vec3(1,1,1))
 struct GLBuffer {
     GLBuffer() : vertexBuffer(0), vertexSize(0), indexBuffer(0), indexCount(0) {}
     operator bool() { return vertexBuffer; }
-    void upload(void* data, int count);
-    void upload(void* data, int count, int size);
+    void upload(const void* data, int count);
+    void upload(const void* data, int count, int size);
     void bind();
     void bindAttribute(GLShader* program, const char* name,int elementSize, size_t offset=0);
     void draw();
 
     uint vertexBuffer;
+    uint vertexCount;
     uint vertexSize;
     uint indexBuffer;
     uint indexCount;
+    uint primitiveType;
 };
 
 enum Format { RGBA=0,Depth=1,Shadow=2,Bilinear=4,Anisotropic=8,Gamma=16,Float=32,Mipmap=64,Clamp=128 };
@@ -252,5 +254,7 @@ struct GLState {
     uint id;
 };
 extern GLState CullFace,DepthTest;
+
+QString glsl(QString tags);
 
 #endif

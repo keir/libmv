@@ -27,20 +27,37 @@
 #include "libmv/simple_pipeline/reconstruction.h"
 
 View::View(QWidget *parent) :
-  QGLWidget(QGLFormat(QGL::SampleBuffers),parent),
-  grab(0), pitch(PI/2), yaw(0), speed(2), walk(0), strafe(0), jump(0) {
+  QGLWidget(/*QGLFormat(QGL::SampleBuffers),*/parent),
+  grab(0), pitch(PI/2), yaw(0), speed(0.1), walk(0), strafe(0), jump(0) {
   setAutoFillBackground(false);
   setFocusPolicy(Qt::StrongFocus);
   makeCurrent();
   glInit();
+  points.primitiveType = 1;
+  /// TODO(MatthiasF): use real data
+  const vec3 data[] = { vec3(-1,0,0), vec3(1,0,0), vec3(0,-1,0), vec3(0,1,0), vec3(0,0,-1), vec3(0,0,1) };
+  points.upload(data,sizeof(data)/sizeof(vec3),sizeof(vec3));
 }
 View::~View() {}
 
 void View::paintGL() {
-  int w=width(),h=height();
+  int w=width(), h=height();
   projection=mat4(); projection.perspective(PI/4, (float)w/h, 1, 16384);
-  view=mat4(); view.rotateX(-pitch); view.rotateZ(-yaw); view.translate( -position );
+  view=mat4(); view.rotateX(-pitch); view.rotateZ(-yaw); view.translate(-position);
+  glViewport(0,0,w,h);
+  glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
   /// TODO(MatthiasF): display bundles, cameras, images, objects
+  static GLShader bundleShader;
+  if(!bundleShader.id) {
+    bundleShader.compile(glsl("vertex"),glsl("fragment"));
+    bundleShader.bindFragments("color");
+  }
+  bundleShader.bind();
+  bundleShader["viewProjectionMatrix"] = projection*view;
+  points.bind();
+  points.bindAttribute(&bundleShader,"position",3);
+  glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+  points.draw();
 }
 
 void View::keyPressEvent(QKeyEvent* e) {
@@ -50,7 +67,6 @@ void View::keyPressEvent(QKeyEvent* e) {
   if( e->key() == Qt::Key_D && strafe<1 ) strafe++;
   if( e->key() == Qt::Key_Control && jump>-1 ) jump--;
   if( e->key() == Qt::Key_Space && jump<1 ) jump++;
-  if( e->key() == Qt::Key_Shift ) speed=8;
   if(!timer.isActive()) timer.start(16,this);
 }
 void View::keyReleaseEvent(QKeyEvent* e) {
@@ -60,8 +76,6 @@ void View::keyReleaseEvent(QKeyEvent* e) {
   if( e->key() == Qt::Key_D ) strafe--;
   if( e->key() == Qt::Key_Control ) jump++;
   if( e->key() == Qt::Key_Space ) jump--;
-  if( e->key() == Qt::Key_Q ) velocity=vec3(0,0,0);
-  if( e->key() == Qt::Key_Shift ) speed=2;
 }
 void View::mousePressEvent(QMouseEvent* e) {
   drag=e->pos();
@@ -89,5 +103,6 @@ void View::timerEvent(QTimerEvent*) {
   mat4 view; view.rotateZ(yaw); view.rotateX(pitch);
   velocity += view*vec3(strafe*speed,0,-walk*speed)+vec3(0,0,jump*speed);
   velocity *= 31.0/32; position += velocity;
-  if( length(velocity) > 0.1 ) update(); else timer.stop();
+  if( length(velocity) < 0.01 ) timer.stop();
+  update();
 }

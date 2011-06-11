@@ -59,6 +59,8 @@ class View : public QGLWidget {
   vec3 momentum;
   QBasicTimer timer;
   mat4 projection,view;
+
+  GLBuffer points;
 };
 
 #endif
