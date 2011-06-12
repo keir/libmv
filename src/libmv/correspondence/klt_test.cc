@@ -42,9 +42,8 @@ TEST(KLTContext, DetectGoodFeaturesSimple) {
   klt.DetectGoodFeatures(derivatives, &features);
 
   EXPECT_EQ(features.size(), 1);
-  EXPECT_EQ(features.back()->coords(0), 25);
-  EXPECT_EQ(features.back()->coords(1), 25);
-  delete features.back();
+  EXPECT_EQ(features.back().coords(0), 25);
+  EXPECT_EQ(features.back().coords(1), 25);
 }
 
 TEST(KLTContext, TrackFeatureOneLevel) {
