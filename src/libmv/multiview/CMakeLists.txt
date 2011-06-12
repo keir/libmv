@@ -36,7 +36,7 @@ FILE(GLOB MULTIVIEW_HDRS *.h)
 
 ADD_LIBRARY(multiview ${MULTIVIEW_SRC} ${MULTIVIEW_HDRS})
 
-TARGET_LINK_LIBRARIES(multiview numeric V3D colamd ldl)
+TARGET_LINK_LIBRARIES(multiview numeric V3D colamd ldl glog)
 
 # make the name of debug libraries end in _d.
 SET_TARGET_PROPERTIES(multiview PROPERTIES DEBUG_POSTFIX "_d")
@@ -45,10 +45,10 @@ SET_TARGET_PROPERTIES(multiview PROPERTIES DEBUG_POSTFIX "_d")
 LIBMV_INSTALL_LIB(multiview)
 
 IF (BUILD_TESTS)
-ADD_LIBRARY(multiview_test_data
-            test_data_sets.cc)
-# make the name of debug libraries end in _d.
-SET_TARGET_PROPERTIES(multiview_test_data PROPERTIES DEBUG_POSTFIX "_d")
+  ADD_LIBRARY(multiview_test_data test_data_sets.cc)
+  TARGET_LINK_LIBRARIES(multiview_test_data multiview)
+  # make the name of debug libraries end in _d.
+  SET_TARGET_PROPERTIES(multiview_test_data PROPERTIES DEBUG_POSTFIX "_d")
 ENDIF (BUILD_TESTS)
 
 MACRO (MULTIVIEW_TEST NAME)
