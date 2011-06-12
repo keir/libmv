@@ -16,5 +16,11 @@ IF (WIN32)
   ADD_SUBDIRECTORY(pthreads-w32)
 ENDIF (WIN32)
 
+IF(APPLE)
+  ADD_SUBDIRECTORY(png)
+  ADD_SUBDIRECTORY(zlib)
+  ADD_SUBDIRECTORY(OpenExif)
+ENDIF(APPLE)
+
 #Installation macro for all third parties headers
 LIBMV_INSTALL_ALL_HEADERS()
