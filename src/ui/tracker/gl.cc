@@ -153,7 +153,7 @@ void GLBuffer::bindAttribute(GLShader* program, const char* name, int elementSiz
   glEnableVertexAttribArray(location);
 }
 void GLBuffer::draw() {
-  uint mode[] = { 0, GL_POINTS, GL_LINE, GL_TRIANGLES, GL_QUADS };
+  uint mode[] = { 0, GL_POINTS, GL_LINES, GL_TRIANGLES, GL_QUADS };
   if(indexBuffer) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glDrawElements(mode[primitiveType],indexCount,GL_UNSIGNED_INT,0);

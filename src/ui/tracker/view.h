@@ -23,7 +23,7 @@
 
 #include <QGLWidget>
 #include <QTimer>
-#include "gl.h"
+#include "ui/tracker/gl.h"
 
 namespace libmv {
 class Reconstruction;
@@ -60,7 +60,8 @@ class View : public QGLWidget {
   QBasicTimer timer;
   mat4 projection,view;
 
-  GLBuffer points;
+  GLBuffer bundles;
+  GLBuffer cameras;
 };
 
 #endif

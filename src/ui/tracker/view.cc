@@ -25,18 +25,44 @@
 #include <QKeyEvent>
 
 #include "libmv/simple_pipeline/reconstruction.h"
-
+#include <QDebug>
 View::View(QWidget *parent) :
-  QGLWidget(/*QGLFormat(QGL::SampleBuffers),*/parent),
-  grab(0), pitch(PI/2), yaw(0), speed(0.1), walk(0), strafe(0), jump(0) {
+  QGLWidget(QGLFormat(QGL::SampleBuffers),parent),
+  grab(0), pitch(PI/2), yaw(0), speed(1), walk(0), strafe(0), jump(0) {
   setAutoFillBackground(false);
   setFocusPolicy(Qt::StrongFocus);
   makeCurrent();
   glInit();
-  points.primitiveType = 1;
-  /// TODO(MatthiasF): use real data
-  const vec3 data[] = { vec3(-1,0,0), vec3(1,0,0), vec3(0,-1,0), vec3(0,1,0), vec3(0,0,-1), vec3(0,0,1) };
-  points.upload(data,sizeof(data)/sizeof(vec3),sizeof(vec3));
+
+  /// TODO(MatthiasF): real bundles
+  const int N=65536;
+  vec3 pointData[N];
+  for(int n=0; n<N; n++) pointData[n]=vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX);
+  bundles.primitiveType = 1;
+  bundles.upload(pointData,sizeof(pointData)/sizeof(vec3),sizeof(vec3));
+
+  /// TODO(MatthiasF): real cameras
+  const int C=256;
+  vec3 lineData[C*16];
+  for(int c=0; c<C; c++) {
+    float angles[3];
+    for(int i=0;i<3;i++) angles[i]=2*PI*rand()/RAND_MAX;
+    mat4 transform;
+    transform.rotateX(angles[0]);
+    transform.rotateY(angles[1]);
+    transform.rotateZ(angles[2]);
+    transform.translate(vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX));
+    transform.scale(16);
+    vec3 base[4] = { vec3(-1,-1,1), vec3(1,-1,1), vec3(1,1,1), vec3(-1,1,1) };
+    for(int i=0; i<4; i++) {
+      lineData[c*16+i*4+0] = transform*vec3(0,0,0);
+      lineData[c*16+i*4+1] = transform*base[i];
+      lineData[c*16+i*4+2] = transform*base[i];
+      lineData[c*16+i*4+3] = transform*base[(i+1)%4];
+    }
+  }
+  cameras.primitiveType = 2;
+  cameras.upload(lineData,sizeof(lineData)/sizeof(vec3),sizeof(vec3));
 }
 View::~View() {}
 
@@ -46,18 +72,36 @@ void View::paintGL() {
   view=mat4(); view.rotateX(-pitch); view.rotateZ(-yaw); view.translate(-position);
   glViewport(0,0,w,h);
   glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-  /// TODO(MatthiasF): display bundles, cameras, images, objects
+
+  /// Display bundles
   static GLShader bundleShader;
   if(!bundleShader.id) {
-    bundleShader.compile(glsl("vertex"),glsl("fragment"));
+    bundleShader.compile(glsl("vertex bundle"),glsl("fragment bundle"));
     bundleShader.bindFragments("color");
   }
   bundleShader.bind();
   bundleShader["viewProjectionMatrix"] = projection*view;
-  points.bind();
-  points.bindAttribute(&bundleShader,"position",3);
+  bundles.bind();
+  bundles.bindAttribute(&bundleShader,"position",3);
   glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-  points.draw();
+  glEnable(GL_POINT_SPRITE);
+  glBlendFunc(GL_ONE,GL_ONE);
+  glEnable(GL_BLEND);
+  bundles.draw();
+  glDisable(GL_BLEND);
+
+  /// Display cameras
+  static GLShader cameraShader;
+  if(!cameraShader.id) {
+    cameraShader.compile(glsl("vertex camera"),glsl("fragment camera"));
+    cameraShader.bindFragments("color");
+  }
+  cameraShader.bind();
+  cameraShader["viewProjectionMatrix"] = projection*view;
+  cameraShader.bind();
+  cameras.bind();
+  cameras.bindAttribute(&cameraShader,"position",3);
+  cameras.draw();
 }
 
 void View::keyPressEvent(QKeyEvent* e) {

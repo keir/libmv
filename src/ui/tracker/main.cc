@@ -71,9 +71,9 @@ MainWindow::MainWindow()
   : clip_(new Clip(this)),
     tracker_(new Tracker(this)),
     pixmap_(0), current_frame_(-1),
-    image_view_(new TrackerView(tracker_,this)),
-    zoom_view_(new TrackerView(tracker_,this)),
-    scene_view_(new View(this)) {
+    image_view_(new TrackerView(tracker_)),
+    zoom_view_(new TrackerView(tracker_)),
+    scene_view_(new View()) {
   setWindowTitle("Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
 
