@@ -43,6 +43,9 @@ class View : public QGLWidget {
  public slots:
   void upload();
 
+ signals:
+  void trackChanged(int track);
+
  protected:
   void paintGL();
   void keyPressEvent(QKeyEvent*);
@@ -67,6 +70,7 @@ class View : public QGLWidget {
 
   GLBuffer bundles;
   GLBuffer cameras;
+  QVector<int> selected;
 };
 
 #endif

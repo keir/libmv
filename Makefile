@@ -1,4 +1,4 @@
-all : debug
+all : release
 
 debug :
 	mkdir -p bin-dbg

@@ -33,6 +33,7 @@ using libmv::Mat3;
 
 View::View(QWidget *parent) :
   QGLWidget(QGLFormat(QGL::SampleBuffers),parent),
+  reconstruction_(new libmv::Reconstruction()),
   grab(0), pitch(PI/2), yaw(0), speed(1), walk(0), strafe(0), jump(0) {
   setAutoFillBackground(false);
   setFocusPolicy(Qt::StrongFocus);
@@ -101,6 +102,11 @@ void View::upload() {
   foreach(Point point, allPoints) {
     points << vec3( point.X.x(), point.X.y(), point.X.z() );
   }
+  foreach(int track, selected) {
+    Point point = *reconstruction_->PointForTrack(track);
+    vec3 p( point.X.x(), point.X.y(), point.X.z() );
+    points << p << p << p;
+  }
   bundles.primitiveType = 1;
   bundles.upload(points.constData(), points.count(), sizeof(vec3));
 
@@ -138,6 +144,7 @@ void View::paintGL() {
   }
   bundleShader.bind();
   bundleShader["viewProjectionMatrix"] = projection*view;
+  bundleShader["pointSize"] = (float)w;
   bundles.bind();
   bundles.bindAttribute(&bundleShader,"position",3);
   glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
@@ -181,6 +188,7 @@ void View::keyReleaseEvent(QKeyEvent* e) {
 void View::mousePressEvent(QMouseEvent* e) {
   drag=e->pos();
 }
+
 void View::mouseReleaseEvent(QMouseEvent* e) {
   if(grab) {
     setCursor(QCursor());
@@ -189,11 +197,31 @@ void View::mouseReleaseEvent(QMouseEvent* e) {
     mat4 transform = projection;
     transform.rotateX(-pitch);
     transform.rotateZ(-yaw);
-    vec3 direction = transform.inverse() * normalize(vec3(2.0*e->x()/width()-1,1-2.0*e->y()/height(),1));
-    float minZ=65536; int hit=-1;
+    vec3 d = transform.inverse() * normalize(vec3(2.0*e->x()/width()-1,1-2.0*e->y()/height(),1));
+    float minD=1;
+    int hitTrack=-1;
     foreach(Point point, reconstruction_->AllPoints()) {
-      //TODO(MatthiasF): ray-sphere intersect and emit trackChanged(int track)
+      vec3 o = vec3(point.X.x(),point.X.y(),point.X.z())-position;
+      double t = dot(d,o) / dot(d,d);
+      if (t < 0) continue;
+      vec3 p = t * d;
+      if( length(p-o) < minD ) {
+        minD = length(p-o);
+        hitTrack = point.track;
+      }
     }
+    if(hitTrack>=0) {
+      if(selected.contains(hitTrack)) {
+        selected.remove(selected.indexOf(hitTrack));
+      } else {
+        selected << hitTrack;
+      }
+      emit trackChanged(hitTrack);
+    } else {
+      selected.clear();
+    }
+    upload();
+    update();
   }
 }
 void View::mouseMoveEvent(QMouseEvent *e) {
