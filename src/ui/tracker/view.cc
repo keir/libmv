@@ -25,7 +25,12 @@
 #include <QKeyEvent>
 
 #include "libmv/simple_pipeline/reconstruction.h"
-#include <QDebug>
+
+using libmv::Camera;
+using libmv::Point;
+using libmv::Vec3;
+using libmv::Mat3;
+
 View::View(QWidget *parent) :
   QGLWidget(QGLFormat(QGL::SampleBuffers),parent),
   grab(0), pitch(PI/2), yaw(0), speed(1), walk(0), strafe(0), jump(0) {
@@ -35,36 +40,88 @@ View::View(QWidget *parent) :
   glInit();
 
   /// TODO(MatthiasF): real bundles
-  const int N=65536;
-  vec3 pointData[N];
-  for(int n=0; n<N; n++) pointData[n]=vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX);
-  bundles.primitiveType = 1;
-  bundles.upload(pointData,sizeof(pointData)/sizeof(vec3),sizeof(vec3));
+  const int nofTracks = 65536;
+  for(int track = 0; track < nofTracks; track++) {
+    vec3 random = vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX);
+    reconstruction_->InsertPoint(track,Vec3(random.x,random.y,random.z));
+  }
 
   /// TODO(MatthiasF): real cameras
-  const int C=256;
-  vec3 lineData[C*16];
-  for(int c=0; c<C; c++) {
+  const int nofImages=256;
+  for(int image = 0; image < nofImages; image++) {
+    vec3 random = vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX);
     float angles[3];
     for(int i=0;i<3;i++) angles[i]=2*PI*rand()/RAND_MAX;
     mat4 transform;
     transform.rotateX(angles[0]);
     transform.rotateY(angles[1]);
     transform.rotateZ(angles[2]);
-    transform.translate(vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX));
+    Mat3 R;
+    for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
+      R(i,j)=transform(i,j);
+    }
+    reconstruction_->InsertCamera(image,R,Vec3(random.x,random.y,random.z));
+  }
+
+  upload();
+}
+View::~View() {}
+
+void View::LoadCameras(QByteArray data) {
+  const Camera *cameras = reinterpret_cast<const Camera *>(data.constData());
+  for (size_t i = 0; i < data.size() / sizeof(Camera); ++i) {
+    Camera camera = cameras[i];
+    reconstruction_->InsertCamera(camera.image,camera.R,camera.t);
+  }
+}
+
+void View::LoadPoints(QByteArray data) {
+  const Point *points = reinterpret_cast<const Point *>(data.constData());
+  for (size_t i = 0; i < data.size() / sizeof(Point); ++i) {
+    Point point = points[i];
+    reconstruction_->InsertPoint(point.track,point.X);
+  }
+}
+
+QByteArray View::SaveCameras() {
+  std::vector<Camera> cameras = reconstruction_->AllCameras();
+  return QByteArray(reinterpret_cast<char *>(cameras.data()),
+                    cameras.size() * sizeof(Camera));
+}
+
+QByteArray View::SavePoints() {
+  std::vector<Point> points = reconstruction_->AllPoints();
+  return QByteArray(reinterpret_cast<char *>(points.data()),
+                    points.size() * sizeof(Point));
+}
+
+void View::upload() {
+  std::vector<Point> allPoints = reconstruction_->AllPoints();
+  QVector<vec3> points; points.reserve(allPoints.size());
+  foreach(Point point, allPoints) {
+    points << vec3( point.X.x(), point.X.y(), point.X.z() );
+  }
+  bundles.primitiveType = 1;
+  bundles.upload(points.constData(), points.count(), sizeof(vec3));
+
+  std::vector<Camera> allCameras = reconstruction_->AllCameras();
+  QVector<vec3> lines; lines.reserve(allCameras.size()*16);
+  foreach(Camera camera, allCameras) {
+    mat4 transform;
+    for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
+      transform(i,j)=camera.R(i,j);
+    }
+    transform.translate(vec3(camera.t.x(), camera.t.y(), camera.t.z()));
     transform.scale(16);
     vec3 base[4] = { vec3(-1,-1,1), vec3(1,-1,1), vec3(1,1,1), vec3(-1,1,1) };
     for(int i=0; i<4; i++) {
-      lineData[c*16+i*4+0] = transform*vec3(0,0,0);
-      lineData[c*16+i*4+1] = transform*base[i];
-      lineData[c*16+i*4+2] = transform*base[i];
-      lineData[c*16+i*4+3] = transform*base[(i+1)%4];
+      lines << transform*vec3(0,0,0) << transform*base[i];
+      lines << transform*base[i] << transform*base[(i+1)%4];
     }
   }
   cameras.primitiveType = 2;
-  cameras.upload(lineData,sizeof(lineData)/sizeof(vec3),sizeof(vec3));
+  cameras.upload(lines.constData(), lines.count(), sizeof(vec3));
 }
-View::~View() {}
 
 void View::paintGL() {
   int w=width(), h=height();
@@ -124,10 +181,19 @@ void View::keyReleaseEvent(QKeyEvent* e) {
 void View::mousePressEvent(QMouseEvent* e) {
   drag=e->pos();
 }
-void View::mouseReleaseEvent(QMouseEvent*) {
+void View::mouseReleaseEvent(QMouseEvent* e) {
   if(grab) {
     setCursor(QCursor());
     grab=false;
+  } else {
+    mat4 transform = projection;
+    transform.rotateX(-pitch);
+    transform.rotateZ(-yaw);
+    vec3 direction = transform.inverse() * normalize(vec3(2.0*e->x()/width()-1,1-2.0*e->y()/height(),1));
+    float minZ=65536; int hit=-1;
+    foreach(Point point, reconstruction_->AllPoints()) {
+      //TODO(MatthiasF): ray-sphere intersect and emit trackChanged(int track)
+    }
   }
 }
 void View::mouseMoveEvent(QMouseEvent *e) {

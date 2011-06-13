@@ -131,7 +131,6 @@ void Tracker::Load(QByteArray data) {
   }
 }
 
-// World's most ghetto serialization, but it does the job!
 QByteArray Tracker::Save() {
   std::vector<Marker> markers = tracks_->AllMarkers();
   return QByteArray(reinterpret_cast<char *>(markers.data()),

@@ -35,9 +35,14 @@ class View : public QGLWidget {
   View(QWidget *parent = 0);
   ~View();
 
-  /*void Load(QByteArray data);
-  QByteArray Save();*/
+  void LoadCameras(QByteArray data);
+  void LoadPoints(QByteArray data);
+  QByteArray SaveCameras();
+  QByteArray SavePoints();
   
+ public slots:
+  void upload();
+
  protected:
   void paintGL();
   void keyPressEvent(QKeyEvent*);
