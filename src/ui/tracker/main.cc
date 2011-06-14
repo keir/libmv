@@ -109,6 +109,7 @@ MainWindow::MainWindow()
   scene_dock->setWidget(scene_view_);
   scene_dock->toggleViewAction()->setIcon(QIcon(":/view-scene"));
   toolbar->addAction(scene_dock->toggleViewAction());
+  connect(scene_view_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
 
   toolbar->addSeparator();
 
@@ -127,10 +128,21 @@ MainWindow::MainWindow()
   delete_button->setPopupMode(QToolButton::MenuButtonPopup);
   connect(delete_popup,SIGNAL(triggered(QAction*)),
           delete_button,SLOT(setDefaultAction(QAction*)));
+
   track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
   connect(image_action_, SIGNAL(triggered(bool)), track_action_, SLOT(setVisible(bool)));
+  track_action_->setVisible(image_view_->isVisible());
+
+  QAction* add_action = toolbar->addAction(QIcon(":/add"), "Add object", scene_view_, SLOT(add()));
+  connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
+          add_action, SLOT(setVisible(bool)));
+
+  QAction* link_action = toolbar->addAction(QIcon(":/link"), "Link active object to selected bundles",
+                                            scene_view_, SLOT(link()));
+  connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
+          link_action, SLOT(setVisible(bool)));
 
   toolbar->addSeparator();
 

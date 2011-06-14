@@ -14,6 +14,9 @@ fragment {
   color = vec4(0,0.25,0,1) * (1-length(2*gl_PointCoord.xy-vec2(1,1)));
  }
  camera {
-  color = vec4(0,0,0.25,1);
+  color = vec4(0.25,0,0,1);
+ }
+ object {
+  color = vec4(0,0,0.33,1);
  }
 }

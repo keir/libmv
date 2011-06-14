@@ -67,6 +67,8 @@ inline vec3 operator *( float b, vec3 a ) { return vec3( a.x*b, a.y*b, a.z*b ); 
 inline vec3 operator *( vec3 a, float b ) { return vec3( a.x*b, a.y*b, a.z*b ); }
 inline vec3 operator /( vec3 a, float b ) { return vec3( a.x/b, a.y/b, a.z/b ); }
 inline vec3 operator /( float a, vec3 b ) { return vec3( a/b.x, a/b.y, a/b.z ); }
+inline bool operator <( vec3 a, vec3 b ) { return a.x<b.x && a.y<b.y && a.z<b.z; }
+inline bool operator >( vec3 a, vec3 b ) { return a.x>b.x && a.y>b.y && a.z>b.z; }
 inline float length( vec3 a ) { return sqrt(dot(a,a)); }
 inline vec3 normalize( vec3 a ) { return a*(1.0/length(a)); }
 
@@ -167,10 +169,9 @@ struct mat4 {
 };
 inline bool operator !=( mat4 a, mat4 b ) { for(int i=0;i<16;i++) if(a.data[i]!=b.data[i]) return true; return false; }
 
-
 /// Convenient GL abstraction layer
 
-void glInit();
+void glInitialize();
 
 struct GLUniform {
   GLUniform(int id) : id(id) {}
@@ -202,9 +203,6 @@ struct GLShader {
   QMap<const char*,int> attribLocations;
   QMap<const char*,int> uniformLocations;
 };
-
-void renderQuad(vec3 min=vec3(-1,-1,0), vec3 max=vec3(1,1,1));
-void renderBox(GLShader& program, vec3 min=vec3(-1,-1,-1), vec3 max=vec3(1,1,1));
 
 struct GLBuffer {
   GLBuffer() : vertexBuffer(0), vertexCount(0), vertexSize(0), indexBuffer(0), indexCount(0), primitiveType(3) {}
@@ -258,6 +256,8 @@ struct GLState {
   uint id;
 };
 extern GLState CullFace,DepthTest;
+
+void glAdditiveBlendMode();
 
 QString glsl(QString tags);
 

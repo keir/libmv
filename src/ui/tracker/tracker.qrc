@@ -14,5 +14,7 @@
         <file alias="play-backward">icons/media-playback-start-backward.png</file>
         <file alias="play-forward">icons/media-playback-start.png</file>
         <file>shader.glsl</file>
+        <file alias="link">icons/insert-link.png</file>
+        <file alias="add">icons/list-add.png</file>
     </qresource>
 </RCC>

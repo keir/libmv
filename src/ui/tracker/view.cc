@@ -31,15 +31,28 @@ using libmv::Point;
 using libmv::Vec3;
 using libmv::Mat3;
 
+void Object::position(libmv::Reconstruction* reconstruction, vec3* min, vec3* max) {
+  vec3 mean;
+  if(!tracks.isEmpty()) {
+    foreach(int track, tracks) {
+      Point point = *reconstruction->PointForTrack(track);
+      mean += vec3(point.X.x(), point.X.y(), point.X.z());
+    }
+    mean /= tracks.count();
+  }
+  *min = mean-vec3(1,1,1);
+  *max = mean+vec3(1,1,1);
+}
+
 View::View(QWidget *parent) :
   QGLWidget(QGLFormat(QGL::SampleBuffers),parent),
   reconstruction_(new libmv::Reconstruction()),
-  grab(0), pitch(PI/2), yaw(0), speed(1), walk(0), strafe(0), jump(0),
-  selectedImage(-1) {
+  grab_(0), pitch_(PI/2), yaw_(0), speed_(1), walk_(0), strafe_(0), jump_(0),
+  selected_image_(-1), selected_object_(0) {
   setAutoFillBackground(false);
   setFocusPolicy(Qt::StrongFocus);
   makeCurrent();
-  glInit();
+  glInitialize();
 
   /// TODO(MatthiasF): real bundles
   const int nofTracks = 65536;
@@ -69,6 +82,7 @@ View::View(QWidget *parent) :
 }
 View::~View() {}
 
+// TODO(MatthiasF): use QDataStream or another serializer
 void View::LoadCameras(QByteArray data) {
   const Camera *cameras = reinterpret_cast<const Camera *>(data.constData());
   for (size_t i = 0; i < data.size() / sizeof(Camera); ++i) {
@@ -85,6 +99,13 @@ void View::LoadPoints(QByteArray data) {
   }
 }
 
+void View::LoadObjects(QByteArray data) {
+  const Object *objects = reinterpret_cast<const Object *>(data.constData());
+  for (size_t i = 0; i < data.size() / sizeof(Object); ++i) {
+    objects_ << objects[i];
+  }
+}
+
 QByteArray View::SaveCameras() {
   std::vector<Camera> cameras = reconstruction_->AllCameras();
   return QByteArray(reinterpret_cast<char *>(cameras.data()),
@@ -97,7 +118,29 @@ QByteArray View::SavePoints() {
                     points.size() * sizeof(Point));
 }
 
-void addCamera(Camera camera, QVector<vec3>& lines) {
+QByteArray View::SaveObjects() {
+  return QByteArray(reinterpret_cast<char *>(objects_.data()),
+                    objects_.size() * sizeof(Object));
+}
+
+void View::add() {
+  objects_ << Object();
+  selected_object_ = &objects_.last();
+  upload();
+}
+
+void View::link() {
+  if(selected_object_) {
+    selected_object_->tracks = selected_tracks_;
+    upload();
+  }
+}
+
+void View::DrawPoint(Point point, QVector<vec3>& points) {
+  points << vec3( point.X.x(), point.X.y(), point.X.z() );
+}
+
+void View::DrawCamera(Camera camera, QVector<vec3>& lines) {
   mat4 rotation;
   for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
     rotation(i,j)=camera.R(i,j);
@@ -112,160 +155,230 @@ void addCamera(Camera camera, QVector<vec3>& lines) {
   }
 }
 
-void View::upload() {
-  std::vector<Point> allPoints = reconstruction_->AllPoints();
-  QVector<vec3> points; points.reserve(allPoints.size());
-  foreach(Point point, allPoints) {
-    points << vec3( point.X.x(), point.X.y(), point.X.z() );
+void View::DrawObject(Object object, QVector<vec3>& quads) {
+  vec3 min,max;
+  object.position(reconstruction_.data(),&min,&max);
+  const int indices[6*4] = { 0,2,6,4,      1,3,7,5,     0,1,5,4,      2,3,7,6,     0,1,3,2,      4,5,7,6, };
+  //const vec3 faces[6] = { vec3(-1,0,0), vec3(1,0,0), vec3(0,-1,0), vec3(0,1,0), vec3(0,0,-1), vec3(0,0,1) };
+  for(int i=0;i<6*4;i++) {
+    int m=indices[i];
+    quads << vec3(m&1?min.x:max.x,m&2?min.y:max.y,m&4?min.z:max.z);
+    //quads << faces[i/4]; //no need for normals without any lights
   }
-  foreach(int track, selectedTracks) {
-    Point point = *reconstruction_->PointForTrack(track);
-    vec3 p( point.X.x(), point.X.y(), point.X.z() );
-    points << p << p << p;
-  }
-  bundles.primitiveType = 1;
-  bundles.upload(points.constData(), points.count(), sizeof(vec3));
+}
 
-  std::vector<Camera> allCameras = reconstruction_->AllCameras();
-  QVector<vec3> lines; lines.reserve(allCameras.size()*16);
-  foreach(Camera camera, allCameras) addCamera(camera,lines);
-  if(selectedImage>=0) {
-    addCamera(*reconstruction_->CameraForImage(selectedImage),lines);
-    addCamera(*reconstruction_->CameraForImage(selectedImage),lines);
-    addCamera(*reconstruction_->CameraForImage(selectedImage),lines);
+void View::upload() {
+  std::vector<Point> all_points = reconstruction_->AllPoints();
+  QVector<vec3> points; points.reserve(all_points.size());
+  foreach(Point point, all_points) {
+    DrawPoint(point,points);
   }
-  cameras.primitiveType = 2;
-  cameras.upload(lines.constData(), lines.count(), sizeof(vec3));
+  foreach(int track, selected_tracks_) {
+    Point point = *reconstruction_->PointForTrack(track);
+    DrawPoint(point,points);
+    DrawPoint(point,points);
+    DrawPoint(point,points);
+  }
+  bundles_.primitiveType = 1;
+  bundles_.upload(points.constData(), points.count(), sizeof(vec3));
+
+  std::vector<Camera> all_cameras = reconstruction_->AllCameras();
+  QVector<vec3> lines; lines.reserve(all_cameras.size()*16);
+  foreach(Camera camera, all_cameras) DrawCamera(camera,lines);
+  if(selected_image_>=0) {
+    DrawCamera(*reconstruction_->CameraForImage(selected_image_),lines);
+    DrawCamera(*reconstruction_->CameraForImage(selected_image_),lines);
+    DrawCamera(*reconstruction_->CameraForImage(selected_image_),lines);
+  }
+  cameras_.primitiveType = 2;
+  cameras_.upload(lines.constData(), lines.count(), sizeof(vec3));
+
+  QVector<vec3> quads; quads.reserve(objects_.size()*6*4*2);
+  foreach(Object object, objects_) {
+    DrawObject(object,quads);
+  }
+  if(selected_object_) {
+    DrawObject(*selected_object_,quads);
+    DrawObject(*selected_object_,quads);
+  }
+  cubes_.primitiveType = 4;
+  cubes_.upload(quads.constData(), quads.count(), sizeof(vec3));
+
+  update();
 }
 
 void View::paintGL() {
   int w=width(), h=height();
-  projection=mat4(); projection.perspective(PI/4, (float)w/h, 1, 16384);
-  view=mat4(); view.rotateX(-pitch); view.rotateZ(-yaw); view.translate(-position);
-  glViewport(0,0,w,h);
-  glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-  glBlendFunc(GL_ONE,GL_ONE);
-  glEnable(GL_BLEND);
+  projection_=mat4(); projection_.perspective(PI/4, (float)w/h, 1, 16384);
+  view_=mat4(); view_.rotateX(-pitch_); view_.rotateZ(-yaw_); view_.translate(-position_);
+  GLFrameBuffer::bindWindow(w,h);
+  glAdditiveBlendMode();
 
   /// Display bundles
-  static GLShader bundleShader;
-  if(!bundleShader.id) {
-    bundleShader.compile(glsl("vertex bundle"),glsl("fragment bundle"));
-    bundleShader.bindFragments("color");
+  static GLShader bundle_shader;
+  if(!bundle_shader.id) {
+    bundle_shader.compile(glsl("vertex bundle"),glsl("fragment bundle"));
+    bundle_shader.bindFragments("color");
   }
-  bundleShader.bind();
-  bundleShader["viewProjectionMatrix"] = projection*view;
-  bundleShader["pointSize"] = (float)w;
-  bundles.bind();
-  bundles.bindAttribute(&bundleShader,"position",3);
-  glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
-  glEnable(GL_POINT_SPRITE);
-  bundles.draw();
+  bundle_shader.bind();
+  bundle_shader["viewProjectionMatrix"] = projection_*view_;
+  bundle_shader["pointSize"] = (float)w;
+  bundles_.bind();
+  bundles_.bindAttribute(&bundle_shader,"position",3);
+  bundles_.draw();
 
   /// Display cameras
-  static GLShader cameraShader;
-  if(!cameraShader.id) {
-    cameraShader.compile(glsl("vertex camera"),glsl("fragment camera"));
-    cameraShader.bindFragments("color");
+  static GLShader camera_shader;
+  if(!camera_shader.id) {
+    camera_shader.compile(glsl("vertex camera"),glsl("fragment camera"));
+    camera_shader.bindFragments("color");
   }
-  cameraShader.bind();
-  cameraShader["viewProjectionMatrix"] = projection*view;
-  cameraShader.bind();
-  cameras.bind();
-  cameras.bindAttribute(&cameraShader,"position",3);
-  cameras.draw();
+  camera_shader.bind();
+  camera_shader["viewProjectionMatrix"] = projection_*view_;
+  camera_shader.bind();
+  cameras_.bind();
+  cameras_.bindAttribute(&camera_shader,"position",3);
+  cameras_.draw();
+
+  /// Display objects
+  static GLShader object_shader;
+  if(!object_shader.id) {
+    object_shader.compile(glsl("vertex object"),glsl("fragment object"));
+    object_shader.bindFragments("color");
+  }
+  object_shader.bind();
+  object_shader["viewProjectionMatrix"] = projection_*view_;
+  object_shader.bind();
+  cubes_.bind();
+  cubes_.bindAttribute(&object_shader,"position",3);
+  cubes_.draw();
 }
 
 void View::keyPressEvent(QKeyEvent* e) {
-  if( e->key() == Qt::Key_W && walk<1 ) walk++;
-  if( e->key() == Qt::Key_A && strafe>-1 ) strafe--;
-  if( e->key() == Qt::Key_S && walk>-1 ) walk--;
-  if( e->key() == Qt::Key_D && strafe<1 ) strafe++;
-  if( e->key() == Qt::Key_Control && jump>-1 ) jump--;
-  if( e->key() == Qt::Key_Space && jump<1 ) jump++;
-  if(!timer.isActive()) timer.start(16,this);
+  if( e->key() == Qt::Key_W && walk_ < 1 ) walk_++;
+  if( e->key() == Qt::Key_A && strafe_ > -1 ) strafe_--;
+  if( e->key() == Qt::Key_S && walk_ > -1 ) walk_--;
+  if( e->key() == Qt::Key_D && strafe_ < 1 ) strafe_++;
+  if( e->key() == Qt::Key_Control && jump_ > -1 ) jump_--;
+  if( e->key() == Qt::Key_Space && jump_ < 1 ) jump_++;
+  if(!timer_.isActive()) timer_.start(16,this);
 }
+
 void View::keyReleaseEvent(QKeyEvent* e) {
-  if( e->key() == Qt::Key_W ) walk--;
-  if( e->key() == Qt::Key_A ) strafe++;
-  if( e->key() == Qt::Key_S ) walk++;
-  if( e->key() == Qt::Key_D ) strafe--;
-  if( e->key() == Qt::Key_Control ) jump++;
-  if( e->key() == Qt::Key_Space ) jump--;
+  if( e->key() == Qt::Key_W ) walk_--;
+  if( e->key() == Qt::Key_A ) strafe_++;
+  if( e->key() == Qt::Key_S ) walk_++;
+  if( e->key() == Qt::Key_D ) strafe_--;
+  if( e->key() == Qt::Key_Control ) jump_++;
+  if( e->key() == Qt::Key_Space ) jump_--;
 }
+
 void View::mousePressEvent(QMouseEvent* e) {
-  drag=e->pos();
+  drag_=e->pos();
+}
+
+//from "An Efficient and Robust Ray-Box Intersection Algorithm"
+static bool intersect(vec3 min, vec3 max, vec3 O, vec3 D, float& t) {
+    if(O>min && O<max) return true;
+    float tmin = ((D.x >= 0?min:max).x - O.x) / D.x;
+    float tmax = ((D.x >= 0?max:min).x - O.x) / D.x;
+    float tymin= ((D.y >= 0?min:max).y - O.y) / D.y;
+    float tymax= ((D.y >= 0?max:min).y - O.y) / D.y;
+    if( (tmin > tymax) || (tymin > tmax) ) return false;
+    if(tymin>tmin) tmin=tymin; if(tymax<tmax) tmax=tymax;
+    float tzmin= ((D.z >= 0?min:max).z - O.z) / D.z;
+    float tzmax= ((D.z >= 0?max:min).z - O.z) / D.z;
+    if( (tmin > tzmax) || (tzmin > tmax) ) return false;
+    if(tzmin>tmin) tmin=tzmin; if(tzmax<tmax) tmax=tzmax;
+    if(tmax <= 0) return false; t=tmax;/*tmax is nearest point*/ return true;
 }
 
 void View::mouseReleaseEvent(QMouseEvent* e) {
-  if(grab) {
+  if(grab_) {
     setCursor(QCursor());
-    grab=false;
+    grab_=false;
   } else {
-    mat4 transform = projection;
-    transform.rotateX(-pitch);
-    transform.rotateZ(-yaw);
+    mat4 transform = projection_;
+    transform.rotateX(-pitch_);
+    transform.rotateZ(-yaw_);
     //FIXME: projection seems wrong, selection is closer to screen center than cursor.
     vec3 d = transform.inverse() * normalize(vec3(2.0*e->x()/width()-1,1-2.0*e->y()/height(),1));
-    float minD=1;
-    int hitTrack=-1,hitImage=-1;
+    float min_distance=1;
+    int hit_track=-1,hit_image=-1,hit_object=-1;
     foreach(Point point, reconstruction_->AllPoints()) {
-      vec3 o = vec3(point.X.x(),point.X.y(),point.X.z())-position;
+      vec3 o = vec3(point.X.x(),point.X.y(),point.X.z())-position_;
       double t = dot(d,o) / dot(d,d);
       if (t < 0) continue;
       vec3 p = t * d;
-      if( length(p-o) < minD ) {
-        minD = length(p-o);
-        hitTrack = point.track;
+      if( length(p-o) < min_distance ) {
+        min_distance = length(p-o);
+        hit_track = point.track;
       }
     }
     foreach(Camera camera, reconstruction_->AllCameras()) {
-      vec3 o = vec3(camera.t.x(),camera.t.y(),camera.t.z())-position;
+      vec3 o = vec3(camera.t.x(),camera.t.y(),camera.t.z())-position_;
       double t = dot(d,o) / dot(d,d);
       if (t < 0) continue;
       vec3 p = t * d;
-      if( length(p-o) < minD ) {
-        minD = length(p-o);
-        hitTrack = -1; hitImage=camera.image;
+      if( length(p-o) < min_distance ) {
+        min_distance = length(p-o);
+        hit_track = -1; hit_image=camera.image;
       }
     }
-    if(hitTrack>=0) {
-      if(selectedTracks.contains(hitTrack)) {
-        selectedTracks.remove(selectedTracks.indexOf(hitTrack));
+    float minZ=16384; int i=0;
+    foreach(Object object, objects_) {
+      vec3 min,max;
+      object.position(reconstruction_.data(),&min,&max);
+      float z;
+      if( intersect(min,max,position_,d,z) && z < minZ ) {
+        minZ = z;
+        hit_track = -1; hit_image=-1; hit_object=i;
+      }
+      i++;
+    }
+    if(hit_track>=0) {
+      if(selected_tracks_.contains(hit_track)) {
+        selected_tracks_.remove(selected_tracks_.indexOf(hit_track));
       } else {
-        selectedTracks << hitTrack;
+        selected_tracks_ << hit_track;
       }
-      emit trackChanged(hitTrack);
+      emit trackChanged(hit_track);
     } else {
-      selectedTracks.clear();
+      selected_tracks_.clear();
+      selected_image_=-1;
+      selected_object_=0;
     }
-    if(hitImage>=0) {
-      selectedImage=hitImage;
-      emit imageChanged(hitImage);
-    } else {
-      selectedImage=-1;
+    if(hit_image>=0) {
+      selected_image_=hit_image;
+      emit imageChanged(hit_image);
+    }
+    if(hit_object>=0) {
+      selected_object_ = &objects_[hit_object];
+      if(selected_tracks_.isEmpty()) {
+        selected_tracks_ = selected_object_->tracks;
+      }
     }
     upload();
-    update();
   }
 }
 void View::mouseMoveEvent(QMouseEvent *e) {
-  if(!grab) {
-    if((drag-e->pos()).manhattanLength()<16) return;
-    grab=true;
+  if(!grab_) {
+    if((drag_-e->pos()).manhattanLength()<16) return;
+    grab_=true;
     setCursor(QCursor(Qt::BlankCursor));
     QCursor::setPos(mapToGlobal(QPoint(width()/2,height()/2)));
     return;
   }
   QPoint delta = e->pos()-QPoint(width()/2,height()/2);
-  yaw=yaw-delta.x()*PI/width(); pitch=qBound(0.0,pitch-delta.y()*PI/width(),PI);
+  yaw_=yaw_-delta.x()*PI/width();
+  pitch_=qBound(0.0,pitch_-delta.y()*PI/width(),PI);
   QCursor::setPos(mapToGlobal(QPoint(width()/2,height()/2)));
-  if(!timer.isActive()) update();
+  if(!timer_.isActive()) update();
 }
 void View::timerEvent(QTimerEvent*) {
-  mat4 view; view.rotateZ(yaw); view.rotateX(pitch);
-  velocity += view*vec3(strafe*speed,0,-walk*speed)+vec3(0,0,jump*speed);
-  velocity *= 31.0/32; position += velocity;
-  if( length(velocity) < 0.01 ) timer.stop();
+  mat4 view; view.rotateZ(yaw_); view.rotateX(pitch_);
+  velocity_ += view*vec3(strafe_*speed_,0,-walk_*speed_)+vec3(0,0,jump_*speed_);
+  velocity_ *= 31.0/32; position_ += velocity_;
+  if( length(velocity_) < 0.01 ) timer_.stop();
   update();
 }

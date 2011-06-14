@@ -26,8 +26,16 @@
 #include "ui/tracker/gl.h"
 
 namespace libmv {
+class Point;
+class Camera;
 class Reconstruction;
 } // namespace libmv
+
+struct Object {
+  mat4 transform;
+  QVector<int> tracks;
+  void position(libmv::Reconstruction* reconstruction, vec3* min, vec3* max);
+};
 
 class View : public QGLWidget {
   Q_OBJECT
@@ -37,10 +45,14 @@ class View : public QGLWidget {
 
   void LoadCameras(QByteArray data);
   void LoadPoints(QByteArray data);
+  void LoadObjects(QByteArray data);
   QByteArray SaveCameras();
   QByteArray SavePoints();
+  QByteArray SaveObjects();
   
  public slots:
+  void add();
+  void link();
   void upload();
 
  signals:
@@ -57,22 +69,31 @@ class View : public QGLWidget {
   void timerEvent(QTimerEvent*);
 
  private:
+  void DrawPoint(libmv::Point point, QVector<vec3>& points);
+  void DrawCamera(libmv::Camera camera, QVector<vec3>& lines);
+  void DrawObject(Object object, QVector<vec3>& quads);
+
   QScopedPointer<libmv::Reconstruction> reconstruction_;
+  QVector<Object> objects_;
 
-  QPoint drag;
-  bool grab;
-  float pitch,yaw,speed;
-  int walk,strafe,jump;
-  vec3 position;
-  vec3 velocity;
-  vec3 momentum;
-  QBasicTimer timer;
-  mat4 projection,view;
+  GLBuffer bundles_;
+  GLBuffer cameras_;
+  GLBuffer cubes_;
 
-  GLBuffer bundles;
-  GLBuffer cameras;
-  QVector<int> selectedTracks;
-  int selectedImage;
+  QPoint drag_;
+  bool grab_;
+  float pitch_,yaw_,speed_;
+  int walk_,strafe_,jump_;
+  vec3 position_;
+  vec3 velocity_;
+  vec3 momentum_;
+  QBasicTimer timer_;
+  mat4 projection_;
+  mat4 view_;
+
+  QVector<int> selected_tracks_;
+  int selected_image_;
+  Object* selected_object_;
 };
 
 #endif

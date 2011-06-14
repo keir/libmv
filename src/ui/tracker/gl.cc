@@ -42,7 +42,7 @@ extern "C" int glXSwapIntervalSGI(int interval);
 #endif
 #endif
 
-void glInit() {
+void glInitialize() {
 #ifdef GLEW
   glewInit();
 #endif
@@ -109,29 +109,6 @@ GLUniform GLShader::operator[](const char* name) {
   return GLUniform(location);
 }
 
-void renderQuad(vec3 min, vec3 max,bool depthBounds) {
-  vec3 corners[] = { vec3(min.x,min.y,min.z), vec3(max.x,min.y,min.z), vec3(max.x,max.y,min.z), vec3(min.x,max.y,min.z) };
-  if(depthBounds) glDepthBoundsEXT(min.z,max.z);
-  glBindBuffer(GL_ARRAY_BUFFER,0);
-  glVertexAttribPointer(0,3,GL_FLOAT,0,0,corners); glEnableVertexAttribArray(0);
-  glDrawArrays(GL_QUADS,0,4);
-}
-
-void renderBox(GLShader& program,vec3 min, vec3 max) {
-  const int indices[6*4] = { 0,2,6,4,      1,3,7,5,     0,1,5,4,      2,3,7,6,     0,1,3,2,      4,5,7,6, };
-  const vec3 faces[6] = { vec3(-1,0,0), vec3(1,0,0), vec3(0,-1,0), vec3(0,1,0), vec3(0,0,-1), vec3(0,0,1) };
-  vec3 position[6*4]; vec3 normal[6*4];
-  for(int i=0;i<6*4;i++) {
-    int m=indices[i];
-    position[i]=vec3(m&1?min.x:max.x,m&2?min.y:max.y,m&4?min.z:max.z);
-    normal[i]=faces[i/4];
-  }
-  glBindBuffer(GL_ARRAY_BUFFER,0);
-  int p=program.attribLocation("position"); glVertexAttribPointer(p,3,GL_FLOAT,0,0,position); glEnableVertexAttribArray(p);
-  int n=program.attribLocation("normal"); glVertexAttribPointer(n,3,GL_FLOAT,0,0,normal); glEnableVertexAttribArray(n);
-  glDrawArrays(GL_QUADS,0,6*4);
-}
-
 void GLBuffer::upload(const void* data, int count) {
   if(!indexBuffer) glGenBuffers(1, &indexBuffer);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -154,6 +131,10 @@ void GLBuffer::bindAttribute(GLShader* program, const char* name, int elementSiz
 }
 void GLBuffer::draw() {
   uint mode[] = { 0, GL_POINTS, GL_LINES, GL_TRIANGLES, GL_QUADS };
+  if(primitiveType==1) {
+    glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
+    glEnable(GL_POINT_SPRITE);
+  }
   if(indexBuffer) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glDrawElements(mode[primitiveType],indexCount,GL_UNSIGNED_INT,0);
@@ -249,7 +230,7 @@ void GLFrameBuffer::bindWindow(int w, int h) {
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   glViewport(0,0,w,h);
   {GLenum buffers[]={GL_FRONT};glDrawBuffers(1, buffers);}
-  glClear(GL_DEPTH_BUFFER_BIT||GL_COLOR_BUFFER_BIT);
+  glClear(GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
 }
 
 static QMap<uint,bool> state;
@@ -266,6 +247,11 @@ void GLState::operator=(bool bit) {
 
 GLState CullFace(GL_CULL_FACE);
 GLState DepthTest(GL_DEPTH_TEST);
+
+void glAdditiveBlendMode() {
+  glBlendFunc(GL_ONE,GL_ONE);
+  glEnable(GL_BLEND);
+}
 
 static QString filterGLSL(QFile& file,QStringList tags) {
   QRegExp filter("(\\w*) \\{");
