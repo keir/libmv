@@ -34,7 +34,8 @@ using libmv::Mat3;
 View::View(QWidget *parent) :
   QGLWidget(QGLFormat(QGL::SampleBuffers),parent),
   reconstruction_(new libmv::Reconstruction()),
-  grab(0), pitch(PI/2), yaw(0), speed(1), walk(0), strafe(0), jump(0) {
+  grab(0), pitch(PI/2), yaw(0), speed(1), walk(0), strafe(0), jump(0),
+  selectedImage(-1) {
   setAutoFillBackground(false);
   setFocusPolicy(Qt::StrongFocus);
   makeCurrent();
@@ -96,13 +97,28 @@ QByteArray View::SavePoints() {
                     points.size() * sizeof(Point));
 }
 
+void addCamera(Camera camera, QVector<vec3>& lines) {
+  mat4 rotation;
+  for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
+    rotation(i,j)=camera.R(i,j);
+  }
+  mat4 transform;
+  transform.translate(vec3(camera.t.x(), camera.t.y(), camera.t.z()));
+  transform = transform * rotation;
+  vec3 base[4] = { vec3(-1,-1,1), vec3(1,-1,1), vec3(1,1,1), vec3(-1,1,1) };
+  for(int i=0; i<4; i++) {
+    lines << transform*vec3(0,0,0) << transform*base[i];
+    lines << transform*base[i] << transform*base[(i+1)%4];
+  }
+}
+
 void View::upload() {
   std::vector<Point> allPoints = reconstruction_->AllPoints();
   QVector<vec3> points; points.reserve(allPoints.size());
   foreach(Point point, allPoints) {
     points << vec3( point.X.x(), point.X.y(), point.X.z() );
   }
-  foreach(int track, selected) {
+  foreach(int track, selectedTracks) {
     Point point = *reconstruction_->PointForTrack(track);
     vec3 p( point.X.x(), point.X.y(), point.X.z() );
     points << p << p << p;
@@ -112,18 +128,11 @@ void View::upload() {
 
   std::vector<Camera> allCameras = reconstruction_->AllCameras();
   QVector<vec3> lines; lines.reserve(allCameras.size()*16);
-  foreach(Camera camera, allCameras) {
-    mat4 transform;
-    for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
-      transform(i,j)=camera.R(i,j);
-    }
-    transform.translate(vec3(camera.t.x(), camera.t.y(), camera.t.z()));
-    transform.scale(16);
-    vec3 base[4] = { vec3(-1,-1,1), vec3(1,-1,1), vec3(1,1,1), vec3(-1,1,1) };
-    for(int i=0; i<4; i++) {
-      lines << transform*vec3(0,0,0) << transform*base[i];
-      lines << transform*base[i] << transform*base[(i+1)%4];
-    }
+  foreach(Camera camera, allCameras) addCamera(camera,lines);
+  if(selectedImage>=0) {
+    addCamera(*reconstruction_->CameraForImage(selectedImage),lines);
+    addCamera(*reconstruction_->CameraForImage(selectedImage),lines);
+    addCamera(*reconstruction_->CameraForImage(selectedImage),lines);
   }
   cameras.primitiveType = 2;
   cameras.upload(lines.constData(), lines.count(), sizeof(vec3));
@@ -135,6 +144,8 @@ void View::paintGL() {
   view=mat4(); view.rotateX(-pitch); view.rotateZ(-yaw); view.translate(-position);
   glViewport(0,0,w,h);
   glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+  glBlendFunc(GL_ONE,GL_ONE);
+  glEnable(GL_BLEND);
 
   /// Display bundles
   static GLShader bundleShader;
@@ -149,10 +160,7 @@ void View::paintGL() {
   bundles.bindAttribute(&bundleShader,"position",3);
   glEnable(GL_VERTEX_PROGRAM_POINT_SIZE);
   glEnable(GL_POINT_SPRITE);
-  glBlendFunc(GL_ONE,GL_ONE);
-  glEnable(GL_BLEND);
   bundles.draw();
-  glDisable(GL_BLEND);
 
   /// Display cameras
   static GLShader cameraShader;
@@ -197,9 +205,10 @@ void View::mouseReleaseEvent(QMouseEvent* e) {
     mat4 transform = projection;
     transform.rotateX(-pitch);
     transform.rotateZ(-yaw);
+    //FIXME: projection seems wrong, selection is closer to screen center than cursor.
     vec3 d = transform.inverse() * normalize(vec3(2.0*e->x()/width()-1,1-2.0*e->y()/height(),1));
     float minD=1;
-    int hitTrack=-1;
+    int hitTrack=-1,hitImage=-1;
     foreach(Point point, reconstruction_->AllPoints()) {
       vec3 o = vec3(point.X.x(),point.X.y(),point.X.z())-position;
       double t = dot(d,o) / dot(d,d);
@@ -210,15 +219,31 @@ void View::mouseReleaseEvent(QMouseEvent* e) {
         hitTrack = point.track;
       }
     }
+    foreach(Camera camera, reconstruction_->AllCameras()) {
+      vec3 o = vec3(camera.t.x(),camera.t.y(),camera.t.z())-position;
+      double t = dot(d,o) / dot(d,d);
+      if (t < 0) continue;
+      vec3 p = t * d;
+      if( length(p-o) < minD ) {
+        minD = length(p-o);
+        hitTrack = -1; hitImage=camera.image;
+      }
+    }
     if(hitTrack>=0) {
-      if(selected.contains(hitTrack)) {
-        selected.remove(selected.indexOf(hitTrack));
+      if(selectedTracks.contains(hitTrack)) {
+        selectedTracks.remove(selectedTracks.indexOf(hitTrack));
       } else {
-        selected << hitTrack;
+        selectedTracks << hitTrack;
       }
       emit trackChanged(hitTrack);
     } else {
-      selected.clear();
+      selectedTracks.clear();
+    }
+    if(hitImage>=0) {
+      selectedImage=hitImage;
+      emit imageChanged(hitImage);
+    } else {
+      selectedImage=-1;
     }
     upload();
     update();

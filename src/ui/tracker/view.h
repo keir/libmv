@@ -45,6 +45,7 @@ class View : public QGLWidget {
 
  signals:
   void trackChanged(int track);
+  void imageChanged(int image);
 
  protected:
   void paintGL();
@@ -70,7 +71,8 @@ class View : public QGLWidget {
 
   GLBuffer bundles;
   GLBuffer cameras;
-  QVector<int> selected;
+  QVector<int> selectedTracks;
+  int selectedImage;
 };
 
 #endif

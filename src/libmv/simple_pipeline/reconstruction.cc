@@ -51,8 +51,13 @@ Camera *Reconstruction::CameraForImage(int image) {
 }
 
 std::vector<Camera> Reconstruction::AllCameras() {
-  /// TODO(MatthiasF): filter invalid cameras
-  return cameras_;
+  std::vector<Camera> cameras;
+  for (int i = 0; i < cameras_.size(); ++i) {
+    if (cameras_[i].image != -1) {
+      cameras.push_back(cameras_[i]);
+    }
+  }
+  return cameras;
 }
 
 Point *Reconstruction::PointForTrack(int track) {
@@ -60,8 +65,13 @@ Point *Reconstruction::PointForTrack(int track) {
 }
 
 std::vector<Point> Reconstruction::AllPoints() {
-  /// TODO(MatthiasF): filter invalid points
-  return points_;
+  std::vector<Point> points;
+  for (int i = 0; i < points_.size(); ++i) {
+    if (points_[i].track != -1) {
+      points.push_back(points_[i]);
+    }
+  }
+  return points;
 }
 
 }  // namespace libmv
