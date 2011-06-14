@@ -31,6 +31,9 @@ using libmv::Point;
 using libmv::Vec3;
 using libmv::Mat3;
 
+/// TODO(MatthiasF): keep this define as long we don't have reconstruction.
+#define RANDOM
+
 void Object::position(libmv::Reconstruction* reconstruction, vec3* min, vec3* max) {
   vec3 mean;
   if(!tracks.isEmpty()) {
@@ -44,6 +47,21 @@ void Object::position(libmv::Reconstruction* reconstruction, vec3* min, vec3* ma
   *max = mean+vec3(1,1,1);
 }
 
+QDataStream& operator>>(QDataStream& s, mat4& v) {
+  s.readRawData((char*)v.data,sizeof(v.data));
+  return s;
+}
+QDataStream& operator<<(QDataStream& s, const mat4& v) {
+  s.writeRawData((char*)v.data,sizeof(v.data));
+  return s;
+}
+QDataStream& operator>>(QDataStream& s, Object& v) {
+  return s >> v.transform >> v.tracks;
+}
+QDataStream& operator<<(QDataStream& s, const Object& v) {
+  return s << v.transform << v.tracks;
+}
+
 View::View(QWidget *parent) :
   QGLWidget(QGLFormat(QGL::SampleBuffers),parent),
   reconstruction_(new libmv::Reconstruction()),
@@ -54,14 +72,13 @@ View::View(QWidget *parent) :
   makeCurrent();
   glInitialize();
 
-  /// TODO(MatthiasF): real bundles
+#ifdef RANDOM
   const int nofTracks = 65536;
   for(int track = 0; track < nofTracks; track++) {
     vec3 random = vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX);
     reconstruction_->InsertPoint(track,Vec3(random.x,random.y,random.z));
   }
 
-  /// TODO(MatthiasF): real cameras
   const int nofImages=256;
   for(int image = 0; image < nofImages; image++) {
     vec3 random = vec3(rand()-RAND_MAX/2,rand()-RAND_MAX/2,rand()-RAND_MAX/2)*(256.0/RAND_MAX);
@@ -77,12 +94,10 @@ View::View(QWidget *parent) :
     }
     reconstruction_->InsertCamera(image,R,Vec3(random.x,random.y,random.z));
   }
-
-  upload();
+#endif
 }
 View::~View() {}
 
-// TODO(MatthiasF): use QDataStream or another serializer
 void View::LoadCameras(QByteArray data) {
   const Camera *cameras = reinterpret_cast<const Camera *>(data.constData());
   for (size_t i = 0; i < data.size() / sizeof(Camera); ++i) {
@@ -91,7 +106,7 @@ void View::LoadCameras(QByteArray data) {
   }
 }
 
-void View::LoadPoints(QByteArray data) {
+void View::LoadBundles(QByteArray data) {
   const Point *points = reinterpret_cast<const Point *>(data.constData());
   for (size_t i = 0; i < data.size() / sizeof(Point); ++i) {
     Point point = points[i];
@@ -100,39 +115,47 @@ void View::LoadPoints(QByteArray data) {
 }
 
 void View::LoadObjects(QByteArray data) {
-  const Object *objects = reinterpret_cast<const Object *>(data.constData());
-  for (size_t i = 0; i < data.size() / sizeof(Object); ++i) {
-    objects_ << objects[i];
-  }
+  QDataStream stream(data);
+  stream >> objects_;
 }
 
 QByteArray View::SaveCameras() {
+#ifdef RANDOM
+  return QByteArray();
+#endif
   std::vector<Camera> cameras = reconstruction_->AllCameras();
   return QByteArray(reinterpret_cast<char *>(cameras.data()),
                     cameras.size() * sizeof(Camera));
 }
 
-QByteArray View::SavePoints() {
+QByteArray View::SaveBundles() {
+#ifdef RANDOM
+  return QByteArray();
+#endif
   std::vector<Point> points = reconstruction_->AllPoints();
   return QByteArray(reinterpret_cast<char *>(points.data()),
                     points.size() * sizeof(Point));
 }
 
 QByteArray View::SaveObjects() {
-  return QByteArray(reinterpret_cast<char *>(objects_.data()),
-                    objects_.size() * sizeof(Object));
+  QByteArray data;
+  QDataStream stream(&data,QIODevice::WriteOnly);
+  stream << objects_;
+  return data;
 }
 
 void View::add() {
   objects_ << Object();
   selected_object_ = &objects_.last();
   upload();
+  emit objectChanged();
 }
 
 void View::link() {
   if(selected_object_) {
     selected_object_->tracks = selected_tracks_;
     upload();
+    emit objectChanged();
   }
 }
 
@@ -252,6 +275,53 @@ void View::paintGL() {
   cubes_.bind();
   cubes_.bindAttribute(&object_shader,"position",3);
   cubes_.draw();
+}
+
+QPixmap View::renderCamera(int w,int h,int image) {
+  /// Allocate offscreen buffer
+  GLFrameBuffer framebuffer;
+  GLTexture depth,color;
+  depth.allocate(w,h,Depth);
+  color.allocate(w,h,BGRA);
+  framebuffer.attach(depth,color);
+  framebuffer.bind(true);
+
+  /// Compute camera projection
+  // TODO(MatthiasF): match real image projection.
+  Camera camera = *reconstruction_->CameraForImage(image);
+  mat4 projection; projection.perspective(PI/4, (float)w/h, 1, 16384);
+  mat4 rotation;
+  // FIXME: this is probably wrong, need to inverse the rotation.
+  for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
+    rotation(i,j)=camera.R(i,j);
+  }
+  mat4 translation;
+  translation.translate(-vec3(camera.t.x(), camera.t.y(), camera.t.z()));
+  mat4 view = rotation * translation;
+#ifdef RANDOM
+  view = view_;
+#endif
+
+  /// Render objects
+  static GLShader object_shader;
+  if(!object_shader.id) {
+    object_shader.compile(glsl("vertex object"),glsl("fragment object"));
+    object_shader.bindFragments("color");
+  }
+  object_shader.bind();
+  object_shader["viewProjectionMatrix"] = projection*view;
+  object_shader.bind();
+  cubes_.bind();
+  cubes_.bindAttribute(&object_shader,"position",3);
+  cubes_.draw();
+
+  // FIXME: convert pixmap from texture (in a cross platform manner)
+  //        without transferring back and forth between main and video memory
+  //        might be easier to reimplement 2D view using GL
+  /*QPixmap pixmap = QPixmap::fromImage(QImage(framebuffer.map(),w,h,QImage::Format_RGB32));
+  framebuffer.unmap();
+  return pixmap;*/
+  return QPixmap();
 }
 
 void View::keyPressEvent(QKeyEvent* e) {

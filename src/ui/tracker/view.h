@@ -44,11 +44,13 @@ class View : public QGLWidget {
   ~View();
 
   void LoadCameras(QByteArray data);
-  void LoadPoints(QByteArray data);
+  void LoadBundles(QByteArray data);
   void LoadObjects(QByteArray data);
   QByteArray SaveCameras();
-  QByteArray SavePoints();
+  QByteArray SaveBundles();
   QByteArray SaveObjects();
+
+  QPixmap renderCamera(int w,int h,int image);
   
  public slots:
   void add();
@@ -58,6 +60,7 @@ class View : public QGLWidget {
  signals:
   void trackChanged(int track);
   void imageChanged(int image);
+  void objectChanged();
 
  protected:
   void paintGL();

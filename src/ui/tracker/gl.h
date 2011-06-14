@@ -221,31 +221,32 @@ struct GLBuffer {
   uint primitiveType;
 };
 
-enum Format { RGBA=0,Depth=1,Shadow=2,Bilinear=4,Anisotropic=8,Gamma=16,Float=32,Mipmap=64,Clamp=128 };
+enum Format { BGRA=0,Depth=1,Shadow=2,Bilinear=4,Anisotropic=8,Gamma=16,Float=32,Mipmap=64,Clamp=128 };
 struct GLTexture {
-  GLTexture() : id(0), width(0), height(0) {}
-  void allocate(int width,int height,int format=RGBA);
+  GLTexture() : id(0),  width(0), height(0) {}
+  ~GLTexture();
+  void allocate(int width,int height,int format);
   void upload(QImage image,bool mipmap=false);
   void bind(int sampler);
   void generateMipmap();
   static void bindSamplers(GLTexture tex0, GLTexture tex1=GLTexture(), GLTexture tex2=GLTexture(), GLTexture tex3=GLTexture());
-  void free();
+
   uint id;
   int width,height;
 };
 
 struct GLFrameBuffer {
-  GLFrameBuffer() : id(0),currentPBO(0),depthWrite(true) {}
+  GLFrameBuffer() : id(0), pbo(0), depthWrite(true) {}
+  ~GLFrameBuffer();
   void attach(GLTexture depth,GLTexture color0=GLTexture(),GLTexture color1=GLTexture());
   void bind(bool clear=false);
   void bindSamplers();
-  void* map();
-  static void unmap();
   static void bindWindow(int w, int h);
+  const uchar* map();
+  static void unmap();
 
-  uint id;
+  uint id, pbo;
   GLTexture depth,color0,color1;
-  uint currentPBO;
   bool depthWrite;
 };
 

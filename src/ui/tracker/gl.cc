@@ -167,7 +167,7 @@ void GLTexture::allocate(int width, int height, int format) {
   } else if(format&Depth) glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT32,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,0);
   else if(format&Gamma) glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8,width,height,0,GL_SRGB,GL_UNSIGNED_BYTE,0);
   else if(format&Float) glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA16F,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,0);
-  else glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,0);
+  else glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,width,height,0,GL_BGRA,GL_UNSIGNED_BYTE,0);
   if(format&Bilinear) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, format&Mipmap?GL_LINEAR_MIPMAP_LINEAR:GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -181,6 +181,9 @@ void GLTexture::allocate(int width, int height, int format) {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   }
 }
+GLTexture::~GLTexture() {
+  if(id) glDeleteTextures(1,&id);
+}
 void GLTexture::bind(int sampler) {
   glActiveTexture(GL_TEXTURE0+sampler);
   glBindTexture(GL_TEXTURE_2D, id);
@@ -192,7 +195,6 @@ void GLTexture::generateMipmap() {
 void GLTexture::bindSamplers(GLTexture tex0, GLTexture tex1, GLTexture tex2, GLTexture tex3) {
   tex0.bind(0); tex1.bind(1); tex2.bind(2); tex3.bind(3);
 }
-void GLTexture::free() { glDeleteTextures(1,&id); id=0; }
 
 void GLFrameBuffer::attach(GLTexture depth, GLTexture color0, GLTexture color1) {
   this->depth=depth; this->color0=color0; this->color1=color1;
@@ -201,6 +203,10 @@ void GLFrameBuffer::attach(GLTexture depth, GLTexture color0, GLTexture color1) 
   if(depth.id) glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,depth.id,0);
   if(color0.id) glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,color0.id,0);
   if(color1.id) glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,GL_TEXTURE_2D,color1.id,0);
+}
+GLFrameBuffer::~GLFrameBuffer() {
+  if(id) glDeleteFramebuffers(1,&id);
+  if(pbo) glDeleteBuffers(1,&pbo);
 }
 void GLFrameBuffer::bind(bool clear) {
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER,id);
@@ -212,25 +218,24 @@ void GLFrameBuffer::bind(bool clear) {
   if(clear) glClear( (depthWrite?GL_DEPTH_BUFFER_BIT:0) | (color0.id?GL_COLOR_BUFFER_BIT:0) );
 }
 void GLFrameBuffer::bindSamplers() { GLTexture::bindSamplers(depth,color0,color1); }
-void* GLFrameBuffer::map() {
-  glBindFramebuffer(GL_READ_FRAMEBUFFER,id);
-  glReadBuffer(GL_COLOR_ATTACHMENT0);
-  if(!currentPBO) glGenBuffers(1,&currentPBO);
-  glBindBuffer(GL_PIXEL_PACK_BUFFER,currentPBO);
-  glBufferData(GL_PIXEL_PACK_BUFFER,color0.width*color0.height*4,0,GL_STREAM_READ);
-  glReadPixels(0,0,color0.width,color0.height,GL_RG,GL_UNSIGNED_SHORT,0);
-  glBindBuffer(GL_PIXEL_PACK_BUFFER,currentPBO);
-  return glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-}
-void GLFrameBuffer::unmap() {
-  glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-  glBindBuffer(GL_PIXEL_PACK_BUFFER,0);
-}
 void GLFrameBuffer::bindWindow(int w, int h) {
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   glViewport(0,0,w,h);
   {GLenum buffers[]={GL_FRONT};glDrawBuffers(1, buffers);}
   glClear(GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
+}
+const uchar* GLFrameBuffer::map() {
+  glBindFramebuffer(GL_READ_FRAMEBUFFER,id);
+  glReadBuffer(GL_COLOR_ATTACHMENT0);
+  if(!pbo) glGenBuffers(1,&pbo);
+  glBindBuffer(GL_PIXEL_PACK_BUFFER,pbo);
+  glBufferData(GL_PIXEL_PACK_BUFFER,color0.width*color0.height*4,0,GL_STREAM_READ);
+  glReadPixels(0,0,color0.width,color0.height,GL_BGRA,GL_UNSIGNED_BYTE,0);
+  return (uchar*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+}
+void GLFrameBuffer::unmap() {
+  glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+  glBindBuffer(GL_PIXEL_PACK_BUFFER,0);
 }
 
 static QMap<uint,bool> state;

@@ -37,7 +37,7 @@
 #include "libmv/tools/tool.h"
 
 void Clip::Open(QString path) {
-  cache_.setMaxCost(128 * 1024 * 1024);
+  cache_.setMaxCost(64 * 1024 * 1024);
   if (path.endsWith(".avi")) {
     // TODO(MatthiasF): load videos using ffmpeg
     return;
@@ -70,7 +70,7 @@ TrackerView::TrackerView(QGraphicsScene *scene,QWidget *parent)
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
     tracker_(new Tracker(this)),
-    pixmap_(0), current_frame_(-1),
+    pixmap_(0), overlay_(0), current_frame_(-1),
     image_view_(new TrackerView(tracker_)),
     zoom_view_(new TrackerView(tracker_)),
     scene_view_(new View()) {
@@ -84,7 +84,7 @@ MainWindow::MainWindow()
                      this, SLOT(open()));
 
   setCentralWidget(image_view_);
-  image_view_->setVisible(QSettings().value("showImage").toBool());
+  //image_view_->setVisible(QSettings().value("showImage").toBool());
   QAction* image_action_ = toolbar->addAction(QIcon(":/view-image"),"Image View");
   image_action_->setCheckable(true);
   image_action_->setChecked(image_view_->isVisible());
@@ -110,6 +110,7 @@ MainWindow::MainWindow()
   scene_dock->toggleViewAction()->setIcon(QIcon(":/view-scene"));
   toolbar->addAction(scene_dock->toggleViewAction());
   connect(scene_view_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
+  connect(scene_view_, SIGNAL(objectChanged()), SLOT(updateOverlay()));
 
   toolbar->addSeparator();
 
@@ -174,15 +175,26 @@ MainWindow::MainWindow()
   restoreGeometry(QSettings().value("geometry").toByteArray());
   restoreState(QSettings().value("windowState").toByteArray());
 }
+void MainWindow::Save(QString name,QByteArray data) {
+  QFile file(QDir(path_).filePath(name));
+  if (file.open(QFile::WriteOnly | QIODevice::Truncate)) {
+    file.write(data);
+  }
+}
 MainWindow::~MainWindow() {
-  QSettings().setValue("showImage", image_view_->isVisible());
+  //QSettings().setValue("showImage", image_view_->isVisible());
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
   if(clip_->isEmpty()) return;
-  QFile tracks(path_+"/tracks");
-  if (tracks.open(QFile::WriteOnly | QIODevice::Truncate)) {
-    tracks.write(tracker_->Save());
-  }
+  Save("tracks",tracker_->Save());
+  Save("cameras",scene_view_->SaveCameras());
+  Save("bundles",scene_view_->SaveBundles());
+  Save("objects",scene_view_->SaveObjects());
+}
+
+QByteArray MainWindow::Load(QString name) {
+  QFile file(QDir(path_).filePath(name));
+  return file.open(QFile::ReadOnly) ? file.readAll() : QByteArray();
 }
 
 void MainWindow::open() {
@@ -194,13 +206,15 @@ void MainWindow::open(QString path) {
   clip_->Open(path);
   if(clip_->isEmpty()) return;
   pixmap_ = 0;
+  overlay_ = 0;
   tracker_->clear();
   path_ = path;
   setWindowTitle(QString("Tracker - %1").arg(QDir(path).dirName()));
-  QFile tracks(path + "/tracks");
-  if (tracks.open(QFile::ReadOnly)) {
-    tracker_->Load(tracks.readAll());
-  }
+  tracker_->Load(Load("tracks"));
+  scene_view_->LoadCameras(Load("cameras"));
+  scene_view_->LoadBundles(Load("bundles"));
+  scene_view_->LoadObjects(Load("objects"));
+  scene_view_->upload();
   spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
   first();
@@ -225,6 +239,8 @@ void MainWindow::seek(int frame) {
   QImage image = clip_->Frame(current_frame_);
   if (!pixmap_) {
     pixmap_ = tracker_->addPixmap(QPixmap::fromImage(image));
+    overlay_ = tracker_->addPixmap(QPixmap());
+    overlay_->setZValue(1);
     image_view_->setMinimumSize(image.size()/2);
     image_view_->setMaximumSize(image.size());
     image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
@@ -236,6 +252,7 @@ void MainWindow::seek(int frame) {
   slider_.setValue(current_frame_);
   spinbox_.setValue(current_frame_);
   tracker_->SetFrame(current_frame_, image, track_action_->isChecked());
+  updateOverlay();
 }
 
 void MainWindow::toggleTracking(bool track) {
@@ -292,14 +309,24 @@ void MainWindow::last() {
   seek(clip_->size() - 1);
 }
 
+void MainWindow::fitImage() {
+  if(pixmap_) image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+  updateOverlay();
+}
+
 void MainWindow::fitZoom(QGraphicsItem* item) {
   if (!zoom_view_->hasFocus()) {
     zoom_view_->fitInView(item, Qt::KeepAspectRatio);
   }
 }
 
-void MainWindow::fitImage() {
-  if(pixmap_) image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+void MainWindow::updateOverlay() {
+  if(!image_view_->isVisible()) return;
+  if(overlay_) {
+    overlay_->setPixmap(
+          scene_view_->renderCamera(pixmap_->pixmap().width(),pixmap_->pixmap().height(),
+                                    current_frame_));
+  }
 }
 
 int main(int argc, char *argv[]) {

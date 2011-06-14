@@ -77,14 +77,20 @@ class MainWindow : public QMainWindow {
   void previous();
   void next();
   void last();
-  void fitZoom(QGraphicsItem*);
+
   void fitImage();
+  void fitZoom(QGraphicsItem*);
+  void updateOverlay();
 
  private:
+  QByteArray Load(QString name);
+  void Save(QString name,QByteArray data);
+
   QString path_;
   Clip *clip_;
   Tracker *tracker_;
   QGraphicsPixmapItem *pixmap_;
+  QGraphicsPixmapItem *overlay_;
   int current_frame_;
 
   QAction *track_action_;
