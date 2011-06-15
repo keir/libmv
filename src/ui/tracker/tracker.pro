@@ -15,6 +15,7 @@ CONFIG(debug, debug|release) {
 }
 
 win32:CONFIG+=glew
+CONFIG+=glew
 glew {
  DEFINES += GLEW
  win32 {

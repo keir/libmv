@@ -179,8 +179,6 @@ inline bool operator !=( mat4 a, mat4 b ) { for(int i=0;i<16;i++) if(a.data[i]!=
 
 /// Convenient GL abstraction layer
 
-void glInitialize();
-
 struct GLUniform {
   GLUniform(int id) : id(id) {}
   void operator=(int);
@@ -200,8 +198,6 @@ struct GLShader {
   GLShader() : id(0) {}
   bool compile(QString vertex, QString fragment);
   void bind();
-  void bindSamplers(const char* tex0, const char* tex1=0, const char* tex2=0, const char* tex3=0);
-  void bindFragments(const char* frag0, const char* frag1=0);
   int attribLocation(const char*);
   GLUniform operator[](const char*);
 
@@ -211,10 +207,9 @@ struct GLShader {
   QMap<const char*,int> uniformLocations;
 };
 
-void renderQuad(vec4 min, vec4 max);
-
 struct GLBuffer {
-  GLBuffer() : vertexBuffer(0), vertexCount(0), vertexSize(0), indexBuffer(0), indexCount(0), primitiveType(3) {}
+  GLBuffer() : vertexBuffer(0), vertexCount(0), vertexSize(0),
+    indexBuffer(0), indexCount(0), primitiveType(3) {}
   operator bool() { return vertexBuffer; }
   void upload(const void* data, int count);
   void upload(const void* data, int count, int size);
@@ -230,43 +225,19 @@ struct GLBuffer {
   uint primitiveType;
 };
 
-enum Format { BGRA=0,Depth=1,Bilinear=2 };
 struct GLTexture {
   GLTexture() : id(0), width(0), height(0) {}
-  void allocate(int width,int height,int format);
   void upload(QImage image);
   void bind(int sampler);
-  static void bindSamplers(GLTexture tex0, GLTexture tex1=GLTexture(), GLTexture tex2=GLTexture(), GLTexture tex3=GLTexture());
 
   uint id;
   int width,height;
 };
 
-struct GLFrameBuffer {
-  GLFrameBuffer() : id(0), pbo(0), depthWrite(true) {}
-  ~GLFrameBuffer();
-  void attach(GLTexture depth,GLTexture color0=GLTexture(),GLTexture color1=GLTexture());
-  void bind(bool clear=false);
-  void bindSamplers();
-  static void bindWindow(int w, int h);
-  const uchar* map();
-  static void unmap();
-
-  uint id, pbo;
-  GLTexture depth,color0,color1;
-  bool depthWrite;
-};
-
-struct GLState {
-  GLState(uint id) : id(id) {}
-  operator bool();
-  void operator=(bool);
-  uint id;
-};
-extern GLState CullFace,DepthTest;
-
+void glInitialize();
+void glBindWindow(int w, int h);
 void glAdditiveBlendMode();
-
+void glQuad(vec4 min, vec4 max);
 QString glsl(QString tags);
 
 #endif

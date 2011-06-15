@@ -82,40 +82,23 @@ bool GLShader::compile(QString vertex, QString fragment) {
     if(l>1) { QByteArray msg(l,0); glGetProgramInfoLog(id,l,0,msg.data()); qDebug()<<msg; return false; } }
   return true;
 }
-void GLShader::bind() { glUseProgram(id); }
-void GLShader::bindSamplers(const char* tex0, const char* tex1, const char* tex2, const char* tex3) {
-  glUniform1i((*this)[tex0].id,0);
-  if(tex1) glUniform1i((*this)[tex1].id,1);
-  if(tex2) glUniform1i((*this)[tex2].id,2);
-  if(tex3) glUniform1i((*this)[tex3].id,3);
+
+void GLShader::bind() {
+  glUseProgram(id);
 }
-void GLShader::bindFragments(const char* /*frag0*/, const char* /*frag1*/) {
-#ifndef GLEW
-#if 0
-  glBindFragDataLocationEXT(id,0,frag0);
-  if(frag1) glBindFragDataLocationEXT(id,1,frag1);
-#endif
-#endif
-}
+
 int GLShader::attribLocation(const char* name ) {
   int location = attribLocations.value(name,-1);
   if(location<0) attribLocations[name]=location=glGetAttribLocation(id,name);
   return location;
 }
+
 GLUniform GLShader::operator[](const char* name) {
   int location = uniformLocations.value(name,-1);
   if(location<0) uniformLocations[name]=location=glGetUniformLocation(id,name);
   return GLUniform(location);
 }
 
-void renderQuad(vec4 min, vec4 max) {
-  vec4 quad[] = { vec4(min.x,min.y,min.z,min.w), vec4(max.x,min.y,max.z,min.w),
-                  vec4(max.x,max.y,max.z,max.w), vec4(min.x,max.y,min.z,max.w) };
-  glBindBuffer(GL_ARRAY_BUFFER,0);
-  glVertexAttribPointer(0,4,GL_FLOAT,0,0,quad);
-  glEnableVertexAttribArray(0);
-  glDrawArrays(GL_QUADS,0,4);
-}
 
 void GLBuffer::upload(const void* data, int count) {
   if(!indexBuffer) glGenBuffers(1, &indexBuffer);
@@ -123,6 +106,7 @@ void GLBuffer::upload(const void* data, int count) {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, count*sizeof(uint), data, GL_STATIC_DRAW );
   indexCount = count;
 }
+
 void GLBuffer::upload(const void* data, int count, int size) {
   if(!vertexBuffer) glGenBuffers(1, &vertexBuffer);
   glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
@@ -130,13 +114,18 @@ void GLBuffer::upload(const void* data, int count, int size) {
   vertexCount = count;
   vertexSize = size;
 }
-void GLBuffer::bind() { glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer); glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0); }
+
+void GLBuffer::bind() {
+  glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+}
+
 void GLBuffer::bindAttribute(GLShader* program, const char* name, int elementSize, size_t offset) {
   int location = program->attribLocation(name);
   if(location<0) { qWarning()<<"unused attrib"<<name; return; }
   glVertexAttribPointer(location, elementSize, GL_FLOAT, 0, vertexSize, (void*)offset);
   glEnableVertexAttribArray(location);
 }
+
 void GLBuffer::draw() {
   uint mode[] = { 0, GL_POINTS, GL_LINES, GL_TRIANGLES, GL_QUADS };
   if(primitiveType==1) {
@@ -158,84 +147,25 @@ void GLTexture::upload(QImage image) {
                0,GL_BGRA,GL_UNSIGNED_BYTE,image.constBits());
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
-void GLTexture::allocate(int width, int height, int format) {
-  this->width=width; this->height=height;
-  if(!id) glGenTextures(1, &id);
-  glBindTexture(GL_TEXTURE_2D, id);
-  if(format&Depth) glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT32,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,0);
-  else glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,width,height,0,GL_BGRA,GL_UNSIGNED_BYTE,0);
-  if(format&Bilinear) {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  } else {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  }
-}
+
 void GLTexture::bind(int sampler) {
   glActiveTexture(GL_TEXTURE0+sampler);
   glBindTexture(GL_TEXTURE_2D, id);
 }
-void GLTexture::bindSamplers(GLTexture tex0, GLTexture tex1, GLTexture tex2, GLTexture tex3) {
-  tex0.bind(0); tex1.bind(1); tex2.bind(2); tex3.bind(3);
+
+void glQuad(vec4 min, vec4 max) {
+  vec4 quad[] = { vec4(min.x,min.y,min.z,min.w), vec4(max.x,min.y,max.z,min.w),
+                  vec4(max.x,max.y,max.z,max.w), vec4(min.x,max.y,min.z,max.w) };
+  glBindBuffer(GL_ARRAY_BUFFER,0);
+  glVertexAttribPointer(0,4,GL_FLOAT,0,0,quad);
+  glEnableVertexAttribArray(0);
+  glDrawArrays(GL_QUADS,0,4);
 }
 
-void GLFrameBuffer::attach(GLTexture depth, GLTexture color0, GLTexture color1) {
-  this->depth=depth; this->color0=color0; this->color1=color1;
-  if(!id) glGenFramebuffers(1,&id);
-  glBindFramebuffer(GL_FRAMEBUFFER,id);
-  if(depth.id) glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,depth.id,0);
-  if(color0.id) glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,color0.id,0);
-  if(color1.id) glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT1,GL_TEXTURE_2D,color1.id,0);
-}
-GLFrameBuffer::~GLFrameBuffer() {
-  if(id) glDeleteFramebuffers(1,&id);
-  if(pbo) glDeleteBuffers(1,&pbo);
-}
-void GLFrameBuffer::bind(bool clear) {
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER,id);
-  if(depth.id) glViewport(0,0,depth.width,depth.height);
-  else glViewport(0,0,color0.width,color0.height);
-  GLenum buffers[]={GL_COLOR_ATTACHMENT0,GL_COLOR_ATTACHMENT1};
-  glDrawBuffers(color1.id?2:color0.id?1:0,buffers);
-  glDepthMask(depthWrite);
-  if(clear) glClear( (depthWrite?GL_DEPTH_BUFFER_BIT:0) | (color0.id?GL_COLOR_BUFFER_BIT:0) );
-}
-void GLFrameBuffer::bindSamplers() { GLTexture::bindSamplers(depth,color0,color1); }
-void GLFrameBuffer::bindWindow(int w, int h) {
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+void glBindWindow(int w, int h) {
   glViewport(0,0,w,h);
-  {GLenum buffers[]={GL_FRONT};glDrawBuffers(1, buffers);}
   glClear(GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
 }
-const uchar* GLFrameBuffer::map() {
-  glBindFramebuffer(GL_READ_FRAMEBUFFER,id);
-  glReadBuffer(GL_COLOR_ATTACHMENT0);
-  if(!pbo) glGenBuffers(1,&pbo);
-  glBindBuffer(GL_PIXEL_PACK_BUFFER,pbo);
-  glBufferData(GL_PIXEL_PACK_BUFFER,color0.width*color0.height*4,0,GL_STREAM_READ);
-  glReadPixels(0,0,color0.width,color0.height,GL_BGRA,GL_UNSIGNED_BYTE,0);
-  return (uchar*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-}
-void GLFrameBuffer::unmap() {
-  glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-  glBindBuffer(GL_PIXEL_PACK_BUFFER,0);
-}
-
-static QMap<uint,bool> state;
-GLState::operator bool() {
-  return state[id];
-}
-void GLState::operator=(bool bit) {
-  if(state[id]!=bit) {
-    if(bit) glEnable(id);
-    else glDisable(id);
-    state[id]=bit;
-  }
-}
-
-GLState CullFace(GL_CULL_FACE);
-GLState DepthTest(GL_DEPTH_TEST);
 
 void glAdditiveBlendMode() {
   glBlendFunc(GL_ONE,GL_ONE);
@@ -255,15 +185,19 @@ static QString filterGLSL(QFile& file,QStringList tags) {
   }
   return out;
 }
+
 QString glsl(QString tags) {
   QFile file(":/shader.glsl");
   file.open(QFile::ReadOnly);
   QString global,main;
   while(!file.atEnd()) {
     foreach(QString line,filterGLSL(file,tags.split(" ")).split("\n")) {
-      if(!line.indexOf(QRegExp("uniform|in|out|(float|vec[1234]|mat[234]) [a-zA-Z0-9]*\\("))) global+=line+"\n";
-      else main+=line+"\n";
+      if(!line.indexOf(QRegExp("uniform|varying|in|out|(float|vec[1234]|mat[234]) [a-zA-Z0-9]*\\("))) {
+        global+=line+"\n";
+      } else {
+        main+=line+"\n";
+      }
     }
   }
-  return "#version 130\n"+global+"\nvoid main() {\n"+main+"\n}\n";
+  return "#version 120\n"+global+"\nvoid main() {\n"+main+"\n}\n";
 }

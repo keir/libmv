@@ -229,15 +229,14 @@ void Tracker::upload() {
 }
 
 void Tracker::Render(int w, int h, int image, int track) {
-  GLFrameBuffer::bindWindow(w,h);
+  glBindWindow(w,h);
   static GLShader image_shader;
   if (!image_shader.id) {
     image_shader.compile(glsl("vertex image"),glsl("fragment image"));
-    image_shader.bindFragments("color");
   }
   image_shader.bind();
-  image_shader.bindSamplers("image");
-  GLTexture::bindSamplers(image_);
+  image_shader["image"] = 0;
+  image_.bind(0);
   int W=image_.width;
   int H=image_.height;
   float width,height;
@@ -246,17 +245,16 @@ void Tracker::Render(int w, int h, int image, int track) {
     vec2 center(marker.x,H-marker.y);
     vec2 min = (center-kSearchWindowSize)/vec2(W,H);
     vec2 max = (center+kSearchWindowSize)/vec2(W,H);
-    renderQuad(vec4(-1,1,min.x,min.y),vec4(1,-1,max.x,max.y));
+    glQuad(vec4(-1,1,min.x,min.y),vec4(1,-1,max.x,max.y));
   } else {
     if (W*h > H*w) { width=1; height=(float)(H*w)/(W*h); }
     else { height=1; width=(float)(W*h)/(H*w); }
-    renderQuad(vec4(-width,-height,0,1),vec4(width,height,1,0));
+    glQuad(vec4(-width,-height,0,1),vec4(width,height,1,0));
   }
 
   static GLShader marker_shader;
   if(!marker_shader.id) {
     marker_shader.compile(glsl("vertex transform marker"),glsl("fragment transform marker"));
-    marker_shader.bindFragments("color");
   }
   marker_shader.bind();
   mat4 transform;
@@ -295,13 +293,10 @@ void Tracker::mousePressEvent(QMouseEvent* e) {
       return;
     }
   }
-  if(selected_tracks_.isEmpty()) {
-    int new_track = tracks_->MaxTrack() + 1;
-    tracks_->Insert(current_image_, new_track, pos.x, pos.y);
-    selected_tracks_ << new_track;
-  } else {
-    selected_tracks_.clear();
-  }
+  int new_track = tracks_->MaxTrack() + 1;
+  tracks_->Insert(current_image_, new_track, pos.x, pos.y);
+  selected_tracks_ << new_track;
+  active_track_ = new_track;
   emit trackChanged(selected_tracks_);
   upload();
 }

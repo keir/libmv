@@ -245,14 +245,13 @@ void Scene::paintGL() {
   int w=width(), h=height();
   projection_=mat4(); projection_.perspective(PI/4, (float)w/h, 1, 16384);
   view_=mat4(); view_.rotateX(-pitch_); view_.rotateZ(-yaw_); view_.translate(-position_);
-  GLFrameBuffer::bindWindow(w,h);
+  glBindWindow(w,h);
   glAdditiveBlendMode();
 
   /// Display bundles
   static GLShader bundle_shader;
   if(!bundle_shader.id) {
     bundle_shader.compile(glsl("vertex transform bundle"),glsl("fragment bundle"));
-    bundle_shader.bindFragments("color");
   }
   bundle_shader.bind();
   bundle_shader["transform"] = projection_*view_;
@@ -265,7 +264,6 @@ void Scene::paintGL() {
   static GLShader camera_shader;
   if(!camera_shader.id) {
     camera_shader.compile(glsl("vertex transform camera"),glsl("fragment camera"));
-    camera_shader.bindFragments("color");
   }
   camera_shader.bind();
   camera_shader["transform"] = projection_*view_;
@@ -277,7 +275,6 @@ void Scene::paintGL() {
   static GLShader object_shader;
   if(!object_shader.id) {
     object_shader.compile(glsl("vertex transform object"),glsl("fragment object"));
-    object_shader.bindFragments("color");
   }
   object_shader.bind();
   object_shader["transform"] = projection_*view_;
@@ -286,15 +283,8 @@ void Scene::paintGL() {
   cubes_.draw();
 }
 
-QPixmap Scene::renderCamera(int w,int h,int image) {
-  /// Allocate offscreen buffer
-  GLFrameBuffer framebuffer;
-  GLTexture depth,color;
-  depth.allocate(w,h,Depth);
-  color.allocate(w,h,BGRA);
-  framebuffer.attach(depth,color);
-  framebuffer.bind(true);
-
+void Scene::RenderOverlay(int w,int h,int image) {
+  glBindWindow(w,h);
   /// Compute camera projection
   // TODO(MatthiasF): match real image projection.
   Camera camera = *reconstruction_->CameraForImage(image);
@@ -315,7 +305,6 @@ QPixmap Scene::renderCamera(int w,int h,int image) {
   static GLShader object_shader;
   if(!object_shader.id) {
     object_shader.compile(glsl("vertex object"),glsl("fragment object"));
-    object_shader.bindFragments("color");
   }
   object_shader.bind();
   object_shader["viewProjectionMatrix"] = projection*view;
@@ -323,14 +312,6 @@ QPixmap Scene::renderCamera(int w,int h,int image) {
   cubes_.bind();
   cubes_.bindAttribute(&object_shader,"position",3);
   cubes_.draw();
-
-  // FIXME: convert pixmap from texture (in a cross platform manner)
-  //        without transferring back and forth between main and video memory
-  //        might be easier to reimplement 2D view using GL
-  /*QPixmap pixmap = QPixmap::fromImage(QImage(framebuffer.map(),w,h,QImage::Format_RGB32));
-  framebuffer.unmap();
-  return pixmap;*/
-  return QPixmap();
 }
 
 void Scene::keyPressEvent(QKeyEvent* e) {
