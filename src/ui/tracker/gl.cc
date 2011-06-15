@@ -49,7 +49,9 @@ void glInitialize() {
 #ifdef WIN32
   wglSwapIntervalEXT(1);
 #else
+#if 0
   glXSwapIntervalSGI(1);
+#endif
 #endif
 }
 
@@ -92,10 +94,12 @@ void GLShader::bindSamplers(const char* tex0, const char* tex1, const char* tex2
   if(tex6) glUniform1i((*this)[tex6].id,6);
   if(tex7) glUniform1i((*this)[tex7].id,7);
 }
-void GLShader::bindFragments(const char* frag0, const char* frag1) {
+void GLShader::bindFragments(const char* /*frag0*/, const char* /*frag1*/) {
 #ifndef GLEW
+#if 0
   glBindFragDataLocationEXT(id,0,frag0);
   if(frag1) glBindFragDataLocationEXT(id,1,frag1);
+#endif
 #endif
 }
 int GLShader::attribLocation(const char* name ) {
