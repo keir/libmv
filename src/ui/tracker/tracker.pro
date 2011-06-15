@@ -1,6 +1,6 @@
 QT += opengl
-HEADERS += view.h gl.h tracker.h main.h
-SOURCES += view.cc gl.cc tracker.cc main.cc
+HEADERS += scene.h gl.h tracker.h main.h
+SOURCES += scene.cc gl.cc tracker.cc main.cc
 OTHER_FILES += shader.glsl
 RESOURCES = tracker.qrc
 INCLUDEPATH += ../..

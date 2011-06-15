@@ -33,8 +33,18 @@ class QImage;
 struct vec2 {
   float x,y;
   inline vec2(float x=0, float y=0):x(x),y(y){}
+#ifdef QSTRING_H
+  inline QString toString() const { return QString("%1 %2").arg(x,0,'f',2).arg(y,0,'f',2); }
+#endif
 };
-inline float cross( vec2 a, vec2 b ) { return a.x*b.y - a.y*b.x; }
+inline vec2 operator +( vec2 a, vec2 b ) { return vec2( a.x+b.x, a.y+b.y ); }
+inline vec2 operator +( vec2 a, float b ) { return vec2( a.x+b, a.y+b ); }
+inline vec2 operator -( vec2 a, vec2 b ) { return vec2( a.x-b.x, a.y-b.y ); }
+inline vec2 operator -( vec2 a, float b ) { return vec2( a.x-b, a.y-b ); }
+inline vec2 operator *( float b, vec2 a ) { return vec2( a.x*b, a.y*b ); }
+inline vec2 operator /( vec2 a, float b ) { return vec2( a.x/b, a.y/b ); }
+inline bool operator <( vec2 a, vec2 b ) { return a.x<b.x && a.y<b.y; }
+inline bool operator >( vec2 a, vec2 b ) { return a.x>b.x && a.y>b.y; }
 
 struct vec3 {
   float x,y,z;
@@ -48,15 +58,10 @@ struct vec3 {
   inline float& operator []( int i ) { return (&x)[i]; }
   inline vec2 xy() { return vec2(x,y); }
 #ifdef QSTRING_H
-  inline vec3(QString s) {x=s.section(' ',0,0).toFloat();y=s.section(' ',1,1).toFloat();z=s.section(' ',2,2).toFloat();}
-  inline QString toString() const { return QString("( %1 %2 %3 )").arg(x,0,'f',2).arg(y,0,'f',2).arg(z,0,'f',2); }
+  inline QString toString() const { return QString("%1 %2 %3").arg(x,0,'f',2).arg(y,0,'f',2).arg(z,0,'f',2); }
 #endif
-  static vec3 random() { return vec3(2.0*(float)rand()/(float)RAND_MAX-1,
-                                     2.0*(float)rand()/(float)RAND_MAX-1,
-                                     2.0*(float)rand()/(float)RAND_MAX-1); }
 };
 inline float dot( vec3 a, vec3 b ) { return a.x*b.x + a.y*b.y + a.z*b.z; }
-inline vec3 cross( vec3 a, vec3 b ) { return vec3( a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x ); }
 inline vec3 operator +( vec3 a, vec3 b ) { return vec3( a.x+b.x, a.y+b.y, a.z+b.z ); }
 inline vec3 operator +( vec3 a, float b ) { return vec3( a.x+b, a.y+b, a.z+b ); }
 inline vec3 operator -( vec3 a, vec3 b ) { return vec3( a.x-b.x, a.y-b.y, a.z-b.z ); }
@@ -77,6 +82,7 @@ struct vec4 {
   inline vec4(float x=0, float y=0, float z=0, float w=0):x(x),y(y),z(z),w(w){}
   inline float& operator []( int i ) { return (&x)[i]; }
   inline vec3 xyz() { return vec3(x,y,z); }
+  inline vec2 xy() { return vec2(x,y); }
 };
 inline float dot( vec4 a, vec4 b ) { return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w; }
 inline vec4 operator *( vec4 a, float b ) { return vec4( a.x*b, a.y*b, a.z*b, a.w*b ); }
@@ -96,7 +102,8 @@ struct mat4 {
   inline float operator()(int i, int j) const { return m(i,j); }
   inline float& operator()(int i, int j) { return m(i,j); }
   inline vec4 operator*(vec4 v) const { vec4 r; for(int i=0;i<4;i++) r[i] = v.x*m(i,0)+v.y*m(i,1)+v.z*m(i,2)+v.w*m(i,3); return r; }
-  inline vec3 operator*(vec3 v) const { vec4 r=*this*vec4(v.x,v.y,v.z,1.0); return r.xyz()/r.w; }
+  inline vec3 operator*(vec3 v) const { vec4 r=*this*vec4(v.x,v.y,v.z,1); return r.xyz()/r.w; }
+  inline vec2 operator*(vec2 v) const { vec4 r=*this*vec4(v.x,v.y,0,1); return r.xy()/r.w; }
   inline mat4 operator*(mat4 b) const {
     mat4 r(0); for(int j=0;j<4;j++) for(int i=0;i<4;i++) for(int k=0;k<4;k++) r.m(i,j) += m(i,k)*b.m(k,j); return r;
   }
@@ -192,8 +199,7 @@ struct GLShader {
   GLShader() : id(0) {}
   bool compile(QString vertex, QString fragment);
   void bind();
-  void bindSamplers(const char* tex0  ,const char* tex1=0,const char* tex2=0,const char* tex3=0,
-                    const char* tex4=0,const char* tex5=0,const char* tex6=0,const char* tex7=0);
+  void bindSamplers(const char* tex0, const char* tex1=0, const char* tex2=0, const char* tex3=0);
   void bindFragments(const char* frag0, const char* frag1=0);
   int attribLocation(const char*);
   GLUniform operator[](const char*);
@@ -203,6 +209,8 @@ struct GLShader {
   QMap<const char*,int> attribLocations;
   QMap<const char*,int> uniformLocations;
 };
+
+void renderQuad(vec2 min, vec2 max);
 
 struct GLBuffer {
   GLBuffer() : vertexBuffer(0), vertexCount(0), vertexSize(0), indexBuffer(0), indexCount(0), primitiveType(3) {}
@@ -221,14 +229,12 @@ struct GLBuffer {
   uint primitiveType;
 };
 
-enum Format { BGRA=0,Depth=1,Shadow=2,Bilinear=4,Anisotropic=8,Gamma=16,Float=32,Mipmap=64,Clamp=128 };
+enum Format { BGRA=0,Depth=1,Bilinear=2 };
 struct GLTexture {
-  GLTexture() : id(0),  width(0), height(0) {}
-  ~GLTexture();
+  GLTexture() : id(0), width(0), height(0) {}
   void allocate(int width,int height,int format);
-  void upload(QImage image,bool mipmap=false);
+  void upload(QImage image);
   void bind(int sampler);
-  void generateMipmap();
   static void bindSamplers(GLTexture tex0, GLTexture tex1=GLTexture(), GLTexture tex2=GLTexture(), GLTexture tex3=GLTexture());
 
   uint id;

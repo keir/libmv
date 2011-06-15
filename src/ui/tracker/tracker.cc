@@ -19,17 +19,16 @@
 // IN THE SOFTWARE.
 
 #include "ui/tracker/tracker.h"
+#include "ui/tracker/gl.h"
 
-#include <QGraphicsSceneMouseEvent>
-#include <QPainter>
-
-#include "libmv/simple_pipeline/tracks.h"
-#include "libmv/logging/logging.h"
 #include "libmv/image/image.h"
+#include "libmv/simple_pipeline/tracks.h"
 #include "libmv/tracking/klt_region_tracker.h"
 #include "libmv/tracking/trklt_region_tracker.h"
 #include "libmv/tracking/pyramid_region_tracker.h"
 #include "libmv/tracking/retrack_region_tracker.h"
+
+#include <QMouseEvent>
 
 using std::vector;
 using libmv::Marker;
@@ -92,34 +91,11 @@ libmv::RegionTracker *CreateRegionTracker() {
   return new libmv::RetrackRegionTracker(pyramid_region_tracker, 0.2);
 }
 
-/// TrackItem
-
-TrackItem::TrackItem(int track) : track_(track) {
-  setFlags(QGraphicsItem::ItemIsSelectable|QGraphicsItem::ItemIsMovable);
-}
-
-QRectF TrackItem::boundingRect() const {
-  return QRectF(-kSearchWindowSize/2, -kSearchWindowSize/2,
-                kSearchWindowSize, kSearchWindowSize);
-}
-void TrackItem::paint(QPainter *painter, const QStyleOptionGraphicsItem*, QWidget*) {
-  painter->setPen(QPen(QBrush( isSelected() ? Qt::green : Qt::darkGreen), 2));
-  painter->drawRect(-kSearchWindowSize/2, -kSearchWindowSize/2,
-                    kSearchWindowSize, kSearchWindowSize);
-  if(isSelected()) {
-    painter->setPen(QPen(QBrush(Qt::green), 1));
-    painter->drawRect(-kPatternWindowSize/2, -kPatternWindowSize/2,
-                      kPatternWindowSize, kPatternWindowSize);
-  }
-}
-
-/// Tracker
-
-Tracker::Tracker(QObject *parent)
-  : QGraphicsScene(parent),
+Tracker::Tracker(QWidget *parent, QGLWidget *shareWidget)
+  : QGLWidget(QGLFormat(QGL::SampleBuffers),parent,shareWidget),
     tracks_(new libmv::Tracks()),
     region_tracker_(CreateRegionTracker()),
-    current_item_(0) {}
+    current_image_(-1), active_track_(-1), dragged_(false) {}
 
 Tracker::~Tracker() {}
 
@@ -137,28 +113,21 @@ QByteArray Tracker::Save() {
                     markers.size() * sizeof(Marker));
 }
 
-void Tracker::SetFrame(int frame, QImage image, bool track) {
-  if (frame == current_frame_) {
-    LG << "Ignoring request to set frame to current frame.";
-    return;
-  }
-  LG << "Setting frame to " << frame;
+void Tracker::SetImage(int image, QImage new_image, bool track) {
+  int previous_image = current_image_;
+  current_image_ = image;
 
-  int previous_frame = current_frame_;
-  current_frame_ = frame;
-
-  // Track active trackers from the previous frame into this one.
+  // Track active trackers from the previous image into this one.
   if (track) {
-    vector<Marker> previous_markers = tracks_->MarkersInImage(previous_frame);
+    vector<Marker> previous_markers = tracks_->MarkersInImage(previous_image);
     foreach (const Marker &marker, previous_markers) {
-      if (!track_items_[marker.track]->isSelected()) {
+      if (!selected_tracks_.contains(marker.track)) {
         continue;
       }
       // TODO(keir): For now this uses a fixed size region. What's needed is
       // an extension to use custom sized boxes around the tracked point.
       int size = 64;
       int half_size = size / 2;
-
 
       // [xy][01] is the upper right box corner.
       int x0 = marker.x - half_size;
@@ -167,15 +136,17 @@ void Tracker::SetFrame(int frame, QImage image, bool track) {
       if (!CopyRegionFromQImage(previous_image_, size, size,
                                 &x0, &y0,
                                 &old_patch)) {
+        selected_tracks_.remove(selected_tracks_.indexOf(marker.track));
         continue;
       }
 
       int x1 = marker.x - half_size;
       int y1 = marker.y - half_size;
       libmv::FloatImage new_patch;
-      if (!CopyRegionFromQImage(image, size, size,
+      if (!CopyRegionFromQImage(new_image, size, size,
                                 &x1, &y1,
                                 &new_patch)) {
+        selected_tracks_.remove(selected_tracks_.indexOf(marker.track));
         continue;
       }
 
@@ -183,105 +154,158 @@ void Tracker::SetFrame(int frame, QImage image, bool track) {
       double yy0 = marker.y - y0;
       double xx1 = marker.x - x1;
       double yy1 = marker.y - y1;
-      if (region_tracker_->Track(old_patch, new_patch,
+      if (!region_tracker_->Track(old_patch, new_patch,
                                  xx0, yy0,
                                  &xx1, &yy1)) {
-        tracks_->Insert(current_frame_, marker.track, x1 + xx1, y1 + yy1);
-        LG << "Tracked (" << xx0 << ", " << yy0 << ") to ("
-           << xx1 << ", " << yy1 << ").";
+        selected_tracks_.remove(selected_tracks_.indexOf(marker.track));
+        continue;
       }
+      tracks_->Insert(current_image_, marker.track, x1 + xx1, y1 + yy1);
     }
   }
-  previous_image_ = image;
+  previous_image_ = new_image;
 
-  vector<Marker> markers = tracks_->MarkersInImage(current_frame_);
-  LG << "Got " << markers.size() << " markers.";
+  makeCurrent();
+  image_.upload(new_image);
+  upload();
+  emit trackChanged(selected_tracks_);
+}
 
-  // Set the position of the tracks for this frame.
-  QSet<int> tracks_in_new_frame;
-  foreach (const Marker &marker, markers) {
-    // Create a visible set to find the tracks that disappeared from the
-    // previous frame.
-    tracks_in_new_frame << marker.track;
+void Tracker::select(QVector<int> tracks) {
+  selected_tracks_ = tracks;
+  upload();
+}
 
-    // Set the position of the marker in the new frame.
-    TrackItem*& track_item = track_items_[marker.track];
-    if (!track_item) {
-      track_item = new TrackItem(marker.track);
-      addItem(track_item);
-    }
-    track_item->setPos(marker.x, marker.y);
-    track_item->show();
+void Tracker::deleteSelectedMarkers() {
+  foreach(int track, selected_tracks_) {
+    tracks_->RemoveMarker(current_image_,track);
   }
+  selected_tracks_.clear();
+  upload();
+  emit trackChanged(selected_tracks_);
+}
 
-  // Hide any tracks that were visible in the last frame but not this one.
-  foreach (int track, tracks_in_previous_frame_) {
-    if (!tracks_in_new_frame.contains(track)) {
-      track_items_[track]->hide();
-    }
+void Tracker::deleteSelectedTracks() {
+  foreach(int track, selected_tracks_) {
+    tracks_->RemoveMarkersForTrack(track);
   }
-  tracks_in_previous_frame_ = tracks_in_new_frame;
+  selected_tracks_.clear();
+  upload();
+  emit trackChanged(selected_tracks_);
+}
 
-  if(current_item_) {
-    current_item_->setSelected(true);
-    emit trackChanged(current_item_);
+// TODO(MatthiasF): custom pattern/search size
+static const float kSearchWindowSize = 32;
+static const float kPatternWindowSize = 5.5;
+
+void Tracker::DrawMarker(libmv::Marker marker, QVector<vec2> &lines) {
+  vec2 center = vec2(marker.x,marker.y);
+  vec2 quad[] = { vec2(-1,-1), vec2(1,-1), vec2(1,1), vec2(-1,1) };
+  for(int i=0;i<4;i++) {
+    lines << center+kSearchWindowSize*quad[i];
+    lines << center+kSearchWindowSize*quad[(i+1)%4];
+  }
+  for(int i=0;i<4;i++) {
+    lines << center+kPatternWindowSize*quad[i];
+    lines << center+kPatternWindowSize*quad[(i+1)%4];
   }
 }
 
-void Tracker::deleteCurrentMarker() {
-  if(current_item_) {
-    tracks_->RemoveMarker(current_frame_, current_item_->Track());
-    current_item_->hide();
+void Tracker::upload() {
+  vector<Marker> markers = tracks_->MarkersInImage(current_image_);
+  QVector<vec2> lines; lines.reserve(markers.size()*8);
+  foreach(Marker marker, markers) {
+    DrawMarker(marker,lines);
   }
+  foreach(int track, selected_tracks_) {
+    Marker marker = tracks_->MarkerInImageForTrack(current_image_,track);
+    DrawMarker(marker,lines);
+    DrawMarker(marker,lines);
+    DrawMarker(marker,lines);
+  }
+  markers_.primitiveType=2;
+  markers_.upload(lines.constData(), lines.count(), sizeof(vec2));
+  update();
 }
 
-void Tracker::deleteCurrentTrack() {
-  if(current_item_) {
-    tracks_->RemoveMarkersForTrack(current_item_->Track());
-    current_item_->hide();
-    current_item_ = 0;
+void Tracker::paintGL() {
+  int w=width(), h=height();
+  GLFrameBuffer::bindWindow(w,h);
+  static GLShader image_shader;
+  if(!image_shader.id) {
+    image_shader.compile(glsl("vertex image"),glsl("fragment image"));
+    image_shader.bindFragments("color");
   }
+  image_shader.bind();
+  image_shader.bindSamplers("image");
+  GLTexture::bindSamplers(image_);
+  int W=image_.width;
+  int H=image_.height;
+  float width,height;
+  if( W*h > H*w ) { width=1; height=(float)(H*w)/(W*h); } else { height=1; width=(float)(W*h)/(H*w); }
+  renderQuad(vec2(-width,-height),vec2(width,height));
+
+  static GLShader marker_shader;
+  if(!marker_shader.id) {
+    marker_shader.compile(glsl("vertex transform marker"),glsl("fragment transform marker"));
+    marker_shader.bindFragments("color");
+  }
+  marker_shader.bind();
+  transform_=mat4();
+  transform_.scale(vec3(2*width/W,2*height/H,1));
+  transform_.translate(vec3(-W/2,-H/2,0));
+  marker_shader["transform"] = transform_;
+  markers_.bind();
+  markers_.bindAttribute(&marker_shader,"position",2);
+  glAdditiveBlendMode();
+  markers_.draw();
 }
 
-void Tracker::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
-  QGraphicsScene::mousePressEvent(mouseEvent);
-  if(selectedItems().isEmpty()) {
-    current_item_ = 0;
+void Tracker::mousePressEvent(QMouseEvent* e) {
+  vec2 pos = transform_.inverse()*vec2(2.0*e->x()/width()-1,1-2.0*e->y()/height());
+  last_position_=pos;
+  vector<Marker> markers = tracks_->MarkersInImage(current_image_);
+  foreach(Marker marker, markers) {
+    vec2 center = vec2(marker.x,marker.y);
+    if( pos > center-kSearchWindowSize && pos < center+kSearchWindowSize ) {
+      active_track_ = marker.track;
+      return;
+    }
+  }
+  if(selected_tracks_.isEmpty()) {
+    int new_track = tracks_->MaxTrack() + 1;
+    tracks_->Insert(current_image_, new_track, pos.x, pos.y);
+    selected_tracks_ << new_track;
   } else {
-    current_item_ = static_cast<TrackItem*>(selectedItems().first());
-    emit trackChanged(current_item_);
+    selected_tracks_.clear();
   }
+  emit trackChanged(selected_tracks_);
+  upload();
 }
 
-void Tracker::mouseMoveEvent(QGraphicsSceneMouseEvent *mouseEvent) {
-  QGraphicsScene::mouseMoveEvent(mouseEvent);
-  if(current_item_) {
-    emit trackChanged(current_item_);
-  }
+void Tracker::mouseMoveEvent(QMouseEvent* e) {
+  vec2 pos = transform_.inverse()*vec2(2.0*e->x()/width()-1,1-2.0*e->y()/height());
+  vec2 delta = pos-last_position_;
+  // FIXME: a reference would avoid duplicate lookup
+  Marker marker = tracks_->MarkerInImageForTrack(current_image_,active_track_);
+  marker.x += delta.x;
+  marker.y += delta.y;
+  tracks_->Insert(current_image_, active_track_, marker.x, marker.y);
+  upload();
+  last_position_=pos;
+  dragged_=true;
 }
 
-void Tracker::mouseReleaseEvent(QGraphicsSceneMouseEvent *mouseEvent) {
-  QGraphicsScene::mouseReleaseEvent(mouseEvent);
-  if(current_item_) {
-    tracks_->Insert(current_frame_,
-                    current_item_->Track(),
-                    current_item_->pos().x(),
-                    current_item_->pos().y());
+void Tracker::mouseReleaseEvent(QMouseEvent *) {
+  if(!dragged_ && active_track_>=0) {
+    if(selected_tracks_.contains(active_track_)) {
+      selected_tracks_.remove(selected_tracks_.indexOf(active_track_));
+    } else {
+      selected_tracks_ << active_track_;
+    }
+    emit trackChanged(selected_tracks_);
   }
-}
-
-void Tracker::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *mouseEvent) {
-  int x = mouseEvent->scenePos().x();
-  int y = mouseEvent->scenePos().y();
-
-  int new_track = tracks_->MaxTrack() + 1;
-
-  TrackItem* item = current_item_ = new TrackItem(new_track);
-  track_items_[new_track] = item;
-  addItem(item);
-  item->setPos(x, y);
-  item->setSelected(true);
-
-  tracks_->Insert(current_frame_, new_track, x, y);
-  emit trackChanged(current_item_);
+  active_track_ = -1;
+  dragged_=false;
+  upload();
 }

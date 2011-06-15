@@ -21,61 +21,55 @@
 #ifndef UI_TRACKER_TRACKER_H_
 #define UI_TRACKER_TRACKER_H_
 
-#include <QGraphicsScene>
-#include <QGraphicsItem>
-#include <QSet>
+#include <QGLWidget>
+#include "ui/tracker/gl.h"
 
 namespace libmv {
 class Tracks;
 class RegionTracker;
+class Marker;
 } // namespace libmv
 
-class TrackItem : public QGraphicsItem {
-public:
-  // TODO(MatthiasF): per track editable window sizes
-  static const int kSearchWindowSize = 64;
-  static const int kPatternWindowSize = 11;
-  TrackItem(int track);
-  inline int Track() { return track_; }
-
-protected:
-  QRectF boundingRect() const;
-  void paint(QPainter *painter, const QStyleOptionGraphicsItem*, QWidget*);
-
-private:
-  int track_;
-};
-
-class Tracker : public QGraphicsScene {
+class Tracker : public QGLWidget {
   Q_OBJECT
  public:
-  Tracker(QObject* parent=0);
+  Tracker(QWidget *parent = 0,QGLWidget *shareWidget = 0);
   ~Tracker();
   void Load(QByteArray data);
   QByteArray Save();
-  void SetFrame(int frame, QImage image, bool track);
+  void SetImage(int image, QImage new_image, bool track);
 
  public slots:
-  void deleteCurrentMarker();
-  void deleteCurrentTrack();
+  void select(QVector<int>);
+  void deleteSelectedMarkers();
+  void deleteSelectedTracks();
+  void upload();
 
  signals:
-  void trackChanged(QGraphicsItem*);
+  void trackChanged(QVector<int>);
 
  protected:
-  void mousePressEvent(QGraphicsSceneMouseEvent*);
-  void mouseMoveEvent(QGraphicsSceneMouseEvent*);
-  void mouseReleaseEvent(QGraphicsSceneMouseEvent*);
-  void mouseDoubleClickEvent(QGraphicsSceneMouseEvent*);
+  void paintGL();
+  void mousePressEvent(QMouseEvent*);
+  void mouseMoveEvent(QMouseEvent*);
+  void mouseReleaseEvent(QMouseEvent *);
 
  private:
+  void DrawMarker(libmv::Marker marker, QVector<vec2>& lines);
+
   QScopedPointer<libmv::Tracks> tracks_;
   QScopedPointer<libmv::RegionTracker> region_tracker_;
-  QMap<int, TrackItem *> track_items_;
-  QSet<int> tracks_in_previous_frame_;
   QImage previous_image_;
-  int current_frame_;
-  TrackItem* current_item_;
+  GLTexture image_;
+
+  mat4 transform_;
+  GLBuffer markers_;
+
+  int current_image_;
+  QVector<int> selected_tracks_;
+  vec2 last_position_;
+  int active_track_;
+  bool dragged_;
 };
 
 

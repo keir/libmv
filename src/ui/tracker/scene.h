@@ -18,8 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef UI_TRACKER_MULTIVIEW_H_
-#define UI_TRACKER_MULTIVIEW_H_
+#ifndef UI_TRACKER_SCENE_H_
+#define UI_TRACKER_SCENE_H_
 
 #include <QGLWidget>
 #include <QTimer>
@@ -37,28 +37,28 @@ struct Object {
   void position(libmv::Reconstruction* reconstruction, vec3* min, vec3* max);
 };
 
-class View : public QGLWidget {
+class Scene : public QGLWidget {
   Q_OBJECT
  public:
-  View(QWidget *parent = 0);
-  ~View();
-
+  Scene(QWidget *parent = 0,QGLWidget *shareWidget = 0);
+  ~Scene();
   void LoadCameras(QByteArray data);
   void LoadBundles(QByteArray data);
   void LoadObjects(QByteArray data);
   QByteArray SaveCameras();
   QByteArray SaveBundles();
   QByteArray SaveObjects();
-
+  void SetImage(int);
   QPixmap renderCamera(int w,int h,int image);
   
  public slots:
+  void select(QVector<int>);
   void add();
   void link();
   void upload();
 
  signals:
-  void trackChanged(int track);
+  void trackChanged(QVector<int> track);
   void imageChanged(int image);
   void objectChanged();
 
@@ -95,8 +95,8 @@ class View : public QGLWidget {
   mat4 view_;
 
   QVector<int> selected_tracks_;
-  int selected_image_;
-  Object* selected_object_;
+  int current_image_;
+  Object* active_object_;
 };
 
 #endif

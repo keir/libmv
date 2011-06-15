@@ -46,6 +46,30 @@ void Tracks::Insert(int image, int track, double x, double y) {
   markers_.push_back(marker);
 }
 
+vector<Marker> Tracks::AllMarkers() const {
+  return markers_;
+}
+
+vector<Marker> Tracks::MarkersInImage(int image) const {
+  vector<Marker> markers;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (image == markers_[i].image) {
+      markers.push_back(markers_[i]);
+    }
+  }
+  return markers;
+}
+
+vector<Marker> Tracks::MarkersForTrack(int track) const {
+  vector<Marker> markers;
+  for (int i = 0; i < markers_.size(); ++i) {
+    if (track == markers_[i].track) {
+      markers.push_back(markers_[i]);
+    }
+  }
+  return markers;
+}
+
 vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) const {
   vector<int> image1_tracks;
   vector<int> image2_tracks;
@@ -78,28 +102,14 @@ vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) cons
   return markers;
 }
 
-vector<Marker> Tracks::MarkersInImage(int image) const {
-  vector<Marker> markers;
+Marker Tracks::MarkerInImageForTrack(int image, int track) const {
   for (int i = 0; i < markers_.size(); ++i) {
-    if (image == markers_[i].image) {
-      markers.push_back(markers_[i]);
+    if (markers_[i].image == image && markers_[i].track == track) {
+      return markers_[i];
     }
   }
-  return markers;
-}
-
-vector<Marker> Tracks::MarkersInTrack(int track) const {
-  vector<Marker> markers;
-  for (int i = 0; i < markers_.size(); ++i) {
-    if (track == markers_[i].track) {
-      markers.push_back(markers_[i]);
-    }
-  }
-  return markers;
-}
-
-vector<Marker> Tracks::AllMarkers() const {
-  return markers_;
+  Marker null = { -1, -1, -1, -1 };
+  return null;
 }
 
 void Tracks::RemoveMarkersForTrack(int track) {

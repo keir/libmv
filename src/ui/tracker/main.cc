@@ -20,7 +20,9 @@
 
 #include "ui/tracker/main.h"
 #include "ui/tracker/tracker.h"
-#include "ui/tracker/view.h"
+#include "ui/tracker/scene.h"
+
+#include "libmv/tools/tool.h"
 
 #include <QDesktopWidget>
 #include <QGraphicsPixmapItem>
@@ -30,11 +32,8 @@
 #include <QToolButton>
 #include <QSettings>
 #include <QCache>
-#include <QDebug>
 #include <QMenu>
 #include <QTime>
-
-#include "libmv/tools/tool.h"
 
 void Clip::Open(QString path) {
   cache_.setMaxCost(64 * 1024 * 1024);
@@ -50,7 +49,7 @@ void Clip::Open(QString path) {
   }
 }
 
-QImage Clip::Frame(int frame) {
+QImage Clip::Image(int frame) {
   QImage* image = cache_[frame];
   if (!image) {
     image = new QImage(value(frame));
@@ -59,21 +58,11 @@ QImage Clip::Frame(int frame) {
   return *image;
 }
 
-TrackerView::TrackerView(QGraphicsScene *scene,QWidget *parent)
-  : QGraphicsView(scene,parent) {
-  setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
-  setDragMode(QGraphicsView::ScrollHandDrag);
-  setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-}
-
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
-    tracker_(new Tracker(this)),
-    pixmap_(0), overlay_(0), current_frame_(-1),
-    image_view_(new TrackerView(tracker_)),
-    zoom_view_(new TrackerView(tracker_)),
-    scene_view_(new View()) {
+    tracker_(new Tracker()),
+    scene_(new Scene(0,tracker_)),
+    current_frame_(-1) {
   setWindowTitle("Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
 
@@ -83,47 +72,33 @@ MainWindow::MainWindow()
   toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
 
-  setCentralWidget(image_view_);
-  //image_view_->setVisible(QSettings().value("showImage").toBool());
-  QAction* image_action_ = toolbar->addAction(QIcon(":/view-image"),"Image View");
-  image_action_->setCheckable(true);
-  image_action_->setChecked(image_view_->isVisible());
-  connect(image_action_,SIGNAL(triggered(bool)),image_view_,SLOT(setVisible(bool)));
-  connect(image_view_, SIGNAL(geometryChanged()), SLOT(fitImage()));
-
-  QDockWidget* zoom_dock = new QDockWidget("Zoom View");
-  zoom_dock->setObjectName("zoomDock");
-  addDockWidget(Qt::TopDockWidgetArea, zoom_dock);
-  const int kZoomFactor = 2;
-  zoom_view_->setMinimumSize(kZoomFactor * TrackItem::kSearchWindowSize,
-                             kZoomFactor * TrackItem::kSearchWindowSize);
-  zoom_view_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
-  zoom_dock->setWidget(zoom_view_);
-  zoom_dock->toggleViewAction()->setIcon(QIcon(":/view-zoom"));
-  toolbar->addAction(zoom_dock->toggleViewAction());
-  connect(tracker_, SIGNAL(trackChanged(QGraphicsItem*)), SLOT(fitZoom(QGraphicsItem*)));
+  setCentralWidget(tracker_);
+  QAction* tracker_action_ = toolbar->addAction(QIcon(":/view-image"),"Tracker View");
+  tracker_action_->setCheckable(true);
+  connect(tracker_action_,SIGNAL(triggered(bool)),tracker_,SLOT(setVisible(bool)));
 
   QDockWidget* scene_dock = new QDockWidget("Scene View");
   scene_dock->setObjectName("sceneDock");
   addDockWidget(Qt::BottomDockWidgetArea, scene_dock);
-  scene_dock->setWidget(scene_view_);
+  scene_dock->setWidget(scene_);
   scene_dock->toggleViewAction()->setIcon(QIcon(":/view-scene"));
   toolbar->addAction(scene_dock->toggleViewAction());
-  connect(scene_view_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
-  connect(scene_view_, SIGNAL(objectChanged()), SLOT(updateOverlay()));
+  connect(scene_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
+  connect(scene_, SIGNAL(objectChanged()), SLOT(updateOverlay()));
+  connect(scene_, SIGNAL(trackChanged(QVector<int>)), tracker_, SLOT(select(QVector<int>)));
 
   toolbar->addSeparator();
 
   QToolButton* delete_button = new QToolButton();
   toolbar->addWidget(delete_button);
-  QMenu* delete_popup = new QMenu(this);
+  QMenu* delete_popup = new QMenu();
   delete_popup->addAction(QIcon(":/delete"),
                           "Delete current marker",
-                          tracker_, SLOT(deleteCurrentMarker()));
+                          tracker_, SLOT(deleteSelectedMarkers()));
   QAction* delete_track = delete_popup->addAction(QIcon(":/delete-row"),
                                                 "Delete current track",
                                                 tracker_,
-                                                SLOT(deleteCurrentTrack()));
+                                                SLOT(deleteSelectedTracks()));
   delete_button->setMenu(delete_popup);
   delete_button->setDefaultAction(delete_track);
   delete_button->setPopupMode(QToolButton::MenuButtonPopup);
@@ -133,15 +108,14 @@ MainWindow::MainWindow()
   track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
-  connect(image_action_, SIGNAL(triggered(bool)), track_action_, SLOT(setVisible(bool)));
-  track_action_->setVisible(image_view_->isVisible());
+  connect(tracker_action_, SIGNAL(triggered(bool)), track_action_, SLOT(setVisible(bool)));
 
-  QAction* add_action = toolbar->addAction(QIcon(":/add"), "Add object", scene_view_, SLOT(add()));
+  QAction* add_action = toolbar->addAction(QIcon(":/add"), "Add object", scene_, SLOT(add()));
   connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
           add_action, SLOT(setVisible(bool)));
 
   QAction* link_action = toolbar->addAction(QIcon(":/link"), "Link active object to selected bundles",
-                                            scene_view_, SLOT(link()));
+                                            scene_, SLOT(link()));
   connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
           link_action, SLOT(setVisible(bool)));
 
@@ -176,20 +150,20 @@ MainWindow::MainWindow()
   restoreState(QSettings().value("windowState").toByteArray());
 }
 void MainWindow::Save(QString name,QByteArray data) {
+  if(data.isEmpty()) return;
   QFile file(QDir(path_).filePath(name));
   if (file.open(QFile::WriteOnly | QIODevice::Truncate)) {
     file.write(data);
   }
 }
 MainWindow::~MainWindow() {
-  //QSettings().setValue("showImage", image_view_->isVisible());
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
   if(clip_->isEmpty()) return;
   Save("tracks",tracker_->Save());
-  Save("cameras",scene_view_->SaveCameras());
-  Save("bundles",scene_view_->SaveBundles());
-  Save("objects",scene_view_->SaveObjects());
+  Save("cameras",scene_->SaveCameras());
+  Save("bundles",scene_->SaveBundles());
+  Save("objects",scene_->SaveObjects());
 }
 
 QByteArray MainWindow::Load(QString name) {
@@ -205,16 +179,13 @@ void MainWindow::open(QString path) {
   if (path.isEmpty() || !QDir(path).exists()) return;
   clip_->Open(path);
   if(clip_->isEmpty()) return;
-  pixmap_ = 0;
-  overlay_ = 0;
-  tracker_->clear();
   path_ = path;
   setWindowTitle(QString("Tracker - %1").arg(QDir(path).dirName()));
   tracker_->Load(Load("tracks"));
-  scene_view_->LoadCameras(Load("cameras"));
-  scene_view_->LoadBundles(Load("bundles"));
-  scene_view_->LoadObjects(Load("objects"));
-  scene_view_->upload();
+  scene_->LoadCameras(Load("cameras"));
+  scene_->LoadBundles(Load("bundles"));
+  scene_->LoadObjects(Load("objects"));
+  scene_->upload();
   spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
   first();
@@ -235,23 +206,10 @@ void MainWindow::seek(int frame) {
   }
   current_frame_ = frame;
 
-  // Get and display the image.
-  QImage image = clip_->Frame(current_frame_);
-  if (!pixmap_) {
-    pixmap_ = tracker_->addPixmap(QPixmap::fromImage(image));
-    overlay_ = tracker_->addPixmap(QPixmap());
-    overlay_->setZValue(1);
-    image_view_->setMinimumSize(image.size()/2);
-    image_view_->setMaximumSize(image.size());
-    image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
-  } else {
-    pixmap_->setPixmap(QPixmap::fromImage(image));
-  }
-
-  zoom_view_->clearFocus();
   slider_.setValue(current_frame_);
   spinbox_.setValue(current_frame_);
-  tracker_->SetFrame(current_frame_, image, track_action_->isChecked());
+  tracker_->SetImage(current_frame_, clip_->Image(current_frame_),
+                     track_action_->isChecked());
   updateOverlay();
 }
 
@@ -309,24 +267,9 @@ void MainWindow::last() {
   seek(clip_->size() - 1);
 }
 
-void MainWindow::fitImage() {
-  if(pixmap_) image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
-  updateOverlay();
-}
-
-void MainWindow::fitZoom(QGraphicsItem* item) {
-  if (!zoom_view_->hasFocus()) {
-    zoom_view_->fitInView(item, Qt::KeepAspectRatio);
-  }
-}
-
 void MainWindow::updateOverlay() {
-  if(!image_view_->isVisible()) return;
-  if(overlay_) {
-    overlay_->setPixmap(
-          scene_view_->renderCamera(pixmap_->pixmap().width(),pixmap_->pixmap().height(),
-                                    current_frame_));
-  }
+  if(!tracker_->isVisible()) return;
+  //scene_view_->renderCamera(tracker_->width(),tracker_->height(),current_frame_));
 }
 
 int main(int argc, char *argv[]) {

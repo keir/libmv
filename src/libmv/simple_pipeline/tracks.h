@@ -71,7 +71,7 @@ class Tracks {
   std::vector<Marker> AllMarkers() const;
 
   /// Returns all the markers belonging to a track.
-  std::vector<Marker> MarkersInTrack(int track) const;
+  std::vector<Marker> MarkersForTrack(int track) const;
 
   /// Returns all the markers visible in \a image.
   std::vector<Marker> MarkersInImage(int image) const;
@@ -83,6 +83,9 @@ class Tracks {
       image2; each marker is for a track that appears in both images.
   */
   std::vector<Marker> MarkersForTracksInBothImages(int image1, int image2) const;
+
+  /// Returns the marker in \a image belonging to \a track.
+  Marker MarkerInImageForTrack(int image, int track) const;
 
   /// Removes all the markers belonging to \a track.
   void RemoveMarkersForTrack(int track);

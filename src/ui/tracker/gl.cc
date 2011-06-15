@@ -83,16 +83,11 @@ bool GLShader::compile(QString vertex, QString fragment) {
   return true;
 }
 void GLShader::bind() { glUseProgram(id); }
-void GLShader::bindSamplers(const char* tex0, const char* tex1, const char* tex2, const char* tex3,
-                            const char* tex4, const char* tex5, const char* tex6, const char* tex7) {
+void GLShader::bindSamplers(const char* tex0, const char* tex1, const char* tex2, const char* tex3) {
   glUniform1i((*this)[tex0].id,0);
   if(tex1) glUniform1i((*this)[tex1].id,1);
   if(tex2) glUniform1i((*this)[tex2].id,2);
   if(tex3) glUniform1i((*this)[tex3].id,3);
-  if(tex4) glUniform1i((*this)[tex4].id,4);
-  if(tex5) glUniform1i((*this)[tex5].id,5);
-  if(tex6) glUniform1i((*this)[tex6].id,6);
-  if(tex7) glUniform1i((*this)[tex7].id,7);
 }
 void GLShader::bindFragments(const char* /*frag0*/, const char* /*frag1*/) {
 #ifndef GLEW
@@ -111,6 +106,14 @@ GLUniform GLShader::operator[](const char* name) {
   int location = uniformLocations.value(name,-1);
   if(location<0) uniformLocations[name]=location=glGetUniformLocation(id,name);
   return GLUniform(location);
+}
+
+void renderQuad(vec2 min, vec2 max) {
+  vec4 quad[] = { vec4(min.x,min.y,0,1), vec4(max.x,min.y,1,1), vec4(max.x,max.y,1,0), vec4(min.x,max.y,0,0) };
+  glBindBuffer(GL_ARRAY_BUFFER,0);
+  glVertexAttribPointer(0,4,GL_FLOAT,0,0,quad);
+  glEnableVertexAttribArray(0);
+  glDrawArrays(GL_QUADS,0,4);
 }
 
 void GLBuffer::upload(const void* data, int count) {
@@ -147,54 +150,30 @@ void GLBuffer::draw() {
   }
 }
 
-void GLTexture::upload(QImage image,bool mipmap) {
+void GLTexture::upload(QImage image) {
   if(!id) glGenTextures(1, &id);
   glBindTexture(GL_TEXTURE_2D, id);
   glTexImage2D(GL_TEXTURE_2D,0,image.depth()/8,width=image.width(),height=image.height(),
                0,GL_BGRA,GL_UNSIGNED_BYTE,image.constBits());
-  if(mipmap) {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glGenerateMipmap(GL_TEXTURE_2D);
-  } else {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  }
-  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 2.0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 void GLTexture::allocate(int width, int height, int format) {
   this->width=width; this->height=height;
   if(!id) glGenTextures(1, &id);
   glBindTexture(GL_TEXTURE_2D, id);
-  if(format&Shadow) {
-    glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT16,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_GEQUAL );
-  } else if(format&Depth) glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT32,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,0);
-  else if(format&Gamma) glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8,width,height,0,GL_SRGB,GL_UNSIGNED_BYTE,0);
-  else if(format&Float) glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA16F,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,0);
+  if(format&Depth) glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT32,width,height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_INT,0);
   else glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,width,height,0,GL_BGRA,GL_UNSIGNED_BYTE,0);
   if(format&Bilinear) {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, format&Mipmap?GL_LINEAR_MIPMAP_LINEAR:GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   } else {
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, format&Mipmap?GL_LINEAR_MIPMAP_NEAREST:GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   }
-  if(format&Anisotropic) glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 2.0);
-  if(format&Clamp) {
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  }
-}
-GLTexture::~GLTexture() {
-  if(id) glDeleteTextures(1,&id);
 }
 void GLTexture::bind(int sampler) {
   glActiveTexture(GL_TEXTURE0+sampler);
   glBindTexture(GL_TEXTURE_2D, id);
-}
-void GLTexture::generateMipmap() {
-  glBindTexture(GL_TEXTURE_2D, id);
-  glGenerateMipmap(GL_TEXTURE_2D);
 }
 void GLTexture::bindSamplers(GLTexture tex0, GLTexture tex1, GLTexture tex2, GLTexture tex3) {
   tex0.bind(0); tex1.bind(1); tex2.bind(2); tex3.bind(3);
