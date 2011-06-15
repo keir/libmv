@@ -17,7 +17,7 @@ vertex {
 
 fragment {
   image {
-    attribute vec2 texCoord;
+    varying vec2 texCoord;
     uniform sampler2D image;
     gl_FragColor = texture2D(image,texCoord);
   }

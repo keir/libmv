@@ -112,7 +112,7 @@ QByteArray Tracker::Save() {
   return QByteArray(reinterpret_cast<char *>(markers.data()),
                     markers.size() * sizeof(Marker));
 }
-
+#include <QDebug>
 void Tracker::SetImage(int image, QImage new_image, bool track) {
   int previous_image = current_image_;
   current_image_ = image;
