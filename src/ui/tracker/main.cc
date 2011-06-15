@@ -91,6 +91,7 @@ MainWindow::MainWindow()
   connect(scene_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
   connect(scene_, SIGNAL(objectChanged()), SLOT(updateOverlay()));
   connect(scene_, SIGNAL(trackChanged(QVector<int>)), tracker_, SLOT(select(QVector<int>)));
+  scene_->hide();
 
   toolbar->addSeparator();
 

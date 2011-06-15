@@ -112,7 +112,7 @@ QByteArray Tracker::Save() {
   return QByteArray(reinterpret_cast<char *>(markers.data()),
                     markers.size() * sizeof(Marker));
 }
-#include <QDebug>
+
 void Tracker::SetImage(int image, QImage new_image, bool track) {
   int previous_image = current_image_;
   current_image_ = image;
@@ -121,9 +121,9 @@ void Tracker::SetImage(int image, QImage new_image, bool track) {
   if (track) {
     vector<Marker> previous_markers = tracks_->MarkersInImage(previous_image);
     foreach (const Marker &marker, previous_markers) {
-      /*if (!selected_tracks_.contains(marker.track)) {
+      if (!selected_tracks_.contains(marker.track)) {
         continue;
-      }*/
+      }
       // TODO(keir): For now this uses a fixed size region. What's needed is
       // an extension to use custom sized boxes around the tracked point.
       int size = 64;
@@ -242,7 +242,7 @@ void Tracker::Render(int w, int h, int image, int track) {
   float width,height;
   if (image >= 0 && track >= 0) {
     Marker marker = tracks_->MarkerInImageForTrack(image,track);
-    vec2 center(marker.x,H-marker.y);
+    vec2 center(marker.x,marker.y);
     vec2 min = (center-kSearchWindowSize)/vec2(W,H);
     vec2 max = (center+kSearchWindowSize)/vec2(W,H);
     glQuad(vec4(-1,1,min.x,min.y),vec4(1,-1,max.x,max.y));
@@ -267,7 +267,7 @@ void Tracker::Render(int w, int h, int image, int track) {
     transform.scale(vec3(2.0/(max-min).x,2.0/(max-min).y,1));
     transform.translate(vec3(-min.x,-min.y,0));
   } else {
-    transform.scale(vec3(2*width/W,2*height/H,1));
+    transform.scale(vec3(2*width/W,-2*height/H,1));
     transform.translate(vec3(-W/2,-H/2,0));
     transform_=transform;
   }
