@@ -65,6 +65,8 @@ MainWindow::MainWindow()
     current_frame_(-1) {
   setWindowTitle("Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
+  setCentralWidget(tracker_);
+  connect(tracker_, SIGNAL(trackChanged(QVector<int>)), this, SLOT(updateZooms(QVector<int>)));
 
   QToolBar* toolbar = addToolBar("Main Toolbar");
   toolbar->setObjectName("mainToolbar");
@@ -72,10 +74,13 @@ MainWindow::MainWindow()
   toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
 
-  setCentralWidget(tracker_);
   QAction* tracker_action_ = toolbar->addAction(QIcon(":/view-image"),"Tracker View");
   tracker_action_->setCheckable(true);
   connect(tracker_action_,SIGNAL(triggered(bool)),tracker_,SLOT(setVisible(bool)));
+
+  QAction* zoom_action_ = toolbar->addAction(QIcon(":/view-zoom"),"Zoom View");
+  zoom_action_->setCheckable(true);
+  connect(zoom_action_,SIGNAL(triggered(bool)),this,SLOT(toggleZoom(bool)));
 
   QDockWidget* scene_dock = new QDockWidget("Scene View");
   scene_dock->setObjectName("sceneDock");
@@ -213,6 +218,29 @@ void MainWindow::seek(int frame) {
   updateOverlay();
 }
 
+void MainWindow::stop() {
+  backward_action_->setChecked(false);
+  previous_timer_.stop();
+  forward_action_->setChecked(false);
+  next_timer_.stop();
+}
+
+void MainWindow::first() {
+  seek(0);
+}
+
+void MainWindow::previous() {
+  seek(current_frame_ - 1);
+}
+
+void MainWindow::next() {
+  seek(current_frame_ + 1);
+}
+
+void MainWindow::last() {
+  seek(clip_->size() - 1);
+}
+
 void MainWindow::toggleTracking(bool track) {
   stop();
   if (track) {
@@ -244,27 +272,42 @@ void MainWindow::toggleForward(bool play) {
   }
 }
 
-void MainWindow::stop() {
-  backward_action_->setChecked(false);
-  previous_timer_.stop();
-  forward_action_->setChecked(false);
-  next_timer_.stop();
+void MainWindow::toggleZoom(bool zoom) {
+  if (zoom) {
+    foreach(QDockWidget* dock, zooms_docks_) {
+      dock->show();
+    }
+  } else {
+    foreach(QDockWidget* dock, zooms_docks_) {
+      dock->hide();
+    }
+  }
 }
 
-void MainWindow::first() {
-  seek(0);
-}
-
-void MainWindow::previous() {
-  seek(current_frame_ - 1);
-}
-
-void MainWindow::next() {
-  seek(current_frame_ + 1);
-}
-
-void MainWindow::last() {
-  seek(clip_->size() - 1);
+void MainWindow::updateZooms(QVector<int> tracks) {
+  if(!zooms_docks_.isEmpty() && tracks.size()*zooms_docks_.first()->width() > width()) {
+    tracks.resize(width() / zooms_docks_.first()->width());
+  }
+  for(int i=tracks.size(); i<zooms_docks_.size(); i++) {
+    removeDockWidget(zooms_docks_[i]);
+    delete zooms_docks_[i];
+    //zoom widget is owned by dock ?
+  }
+  for(int i=zooms_docks_.size(); i<tracks.size(); i++) {
+    QDockWidget* dock = new QDockWidget(QString("Zoom View #%1").arg(tracks[i]));
+    dock->setObjectName(QString("zoom%1").arg(tracks[i]));
+    addDockWidget(Qt::TopDockWidgetArea, dock);
+    Zoom* zoom = new Zoom(0,tracker_);
+    dock->setWidget(zoom);
+    addDockWidget(Qt::TopDockWidgetArea,dock);
+    zooms_ << zoom;
+    zooms_docks_ << dock;
+  }
+  zooms_docks_.resize(tracks.size());
+  zooms_.resize(tracks.size());
+  for(int i=0; i<tracks.size(); i++) {
+    zooms_[i]->SetMarker(current_frame_,tracks[i]);
+  }
 }
 
 void MainWindow::updateOverlay() {

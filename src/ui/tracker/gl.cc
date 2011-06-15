@@ -108,8 +108,9 @@ GLUniform GLShader::operator[](const char* name) {
   return GLUniform(location);
 }
 
-void renderQuad(vec2 min, vec2 max) {
-  vec4 quad[] = { vec4(min.x,min.y,0,1), vec4(max.x,min.y,1,1), vec4(max.x,max.y,1,0), vec4(min.x,max.y,0,0) };
+void renderQuad(vec4 min, vec4 max) {
+  vec4 quad[] = { vec4(min.x,min.y,min.z,min.w), vec4(max.x,min.y,max.z,min.w),
+                  vec4(max.x,max.y,max.z,max.w), vec4(min.x,max.y,min.z,max.w) };
   glBindBuffer(GL_ARRAY_BUFFER,0);
   glVertexAttribPointer(0,4,GL_FLOAT,0,0,quad);
   glEnableVertexAttribArray(0);

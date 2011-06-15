@@ -43,6 +43,7 @@ inline vec2 operator -( vec2 a, vec2 b ) { return vec2( a.x-b.x, a.y-b.y ); }
 inline vec2 operator -( vec2 a, float b ) { return vec2( a.x-b, a.y-b ); }
 inline vec2 operator *( float b, vec2 a ) { return vec2( a.x*b, a.y*b ); }
 inline vec2 operator /( vec2 a, float b ) { return vec2( a.x/b, a.y/b ); }
+inline vec2 operator /( vec2 a, vec2 b ) { return vec2( a.x/b.x, a.y/b.y ); }
 inline bool operator <( vec2 a, vec2 b ) { return a.x<b.x && a.y<b.y; }
 inline bool operator >( vec2 a, vec2 b ) { return a.x>b.x && a.y>b.y; }
 
@@ -210,7 +211,7 @@ struct GLShader {
   QMap<const char*,int> uniformLocations;
 };
 
-void renderQuad(vec2 min, vec2 max);
+void renderQuad(vec4 min, vec4 max);
 
 struct GLBuffer {
   GLBuffer() : vertexBuffer(0), vertexCount(0), vertexSize(0), indexBuffer(0), indexCount(0), primitiveType(3) {}

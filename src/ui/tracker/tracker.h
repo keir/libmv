@@ -38,6 +38,7 @@ class Tracker : public QGLWidget {
   void Load(QByteArray data);
   QByteArray Save();
   void SetImage(int image, QImage new_image, bool track);
+  void Render(int w, int h, int image=-1, int track=-1);
 
  public slots:
   void select(QVector<int>);
@@ -72,5 +73,18 @@ class Tracker : public QGLWidget {
   bool dragged_;
 };
 
+class Zoom : public QGLWidget {
+  Q_OBJECT
+ public:
+  Zoom(QWidget *parent = 0,Tracker *tracker = 0);
+  void SetMarker(int image, int track);
+
+ protected:
+  void paintGL();
+ private:
+  Tracker* tracker_;
+  int image_;
+  int track_;
+};
 
 #endif

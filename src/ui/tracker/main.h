@@ -31,6 +31,7 @@
 #include <QTimer>
 
 class Tracker;
+class Zoom;
 class Scene;
 
 class Clip : public QObject, public QList<QString>   {
@@ -53,15 +54,17 @@ class MainWindow : public QMainWindow {
   void open();
   void open(QString);
   void seek(int);
-  void toggleTracking(bool);
-  void toggleBackward(bool);
-  void toggleForward(bool);
   void stop();
   void first();
   void previous();
   void next();
   void last();
+  void toggleTracking(bool);
+  void toggleBackward(bool);
+  void toggleForward(bool);
+  void toggleZoom(bool);
 
+  void updateZooms(QVector<int>);
   void updateOverlay();
 
  private:
@@ -71,6 +74,8 @@ class MainWindow : public QMainWindow {
   QString path_;
   Clip *clip_;
   Tracker *tracker_;
+  QVector<Zoom*> zooms_;
+  QVector<QDockWidget*> zooms_docks_;
   Scene *scene_;
   int current_frame_;
   QAction *track_action_;

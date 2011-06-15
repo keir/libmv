@@ -201,11 +201,11 @@ static const float kPatternWindowSize = 5.5;
 void Tracker::DrawMarker(libmv::Marker marker, QVector<vec2> &lines) {
   vec2 center = vec2(marker.x,marker.y);
   vec2 quad[] = { vec2(-1,-1), vec2(1,-1), vec2(1,1), vec2(-1,1) };
-  for(int i=0;i<4;i++) {
+  for (int i=0; i<4; i++) {
     lines << center+kSearchWindowSize*quad[i];
     lines << center+kSearchWindowSize*quad[(i+1)%4];
   }
-  for(int i=0;i<4;i++) {
+  for (int i=0; i<4; i++) {
     lines << center+kPatternWindowSize*quad[i];
     lines << center+kPatternWindowSize*quad[(i+1)%4];
   }
@@ -228,11 +228,10 @@ void Tracker::upload() {
   update();
 }
 
-void Tracker::paintGL() {
-  int w=width(), h=height();
+void Tracker::Render(int w, int h, int image, int track) {
   GLFrameBuffer::bindWindow(w,h);
   static GLShader image_shader;
-  if(!image_shader.id) {
+  if (!image_shader.id) {
     image_shader.compile(glsl("vertex image"),glsl("fragment image"));
     image_shader.bindFragments("color");
   }
@@ -242,8 +241,17 @@ void Tracker::paintGL() {
   int W=image_.width;
   int H=image_.height;
   float width,height;
-  if( W*h > H*w ) { width=1; height=(float)(H*w)/(W*h); } else { height=1; width=(float)(W*h)/(H*w); }
-  renderQuad(vec2(-width,-height),vec2(width,height));
+  if (image >= 0 && track >= 0) {
+    Marker marker = tracks_->MarkerInImageForTrack(image,track);
+    vec2 center(marker.x,H-marker.y);
+    vec2 min = (center-kSearchWindowSize)/vec2(W,H);
+    vec2 max = (center+kSearchWindowSize)/vec2(W,H);
+    renderQuad(vec4(-1,1,min.x,min.y),vec4(1,-1,max.x,max.y));
+  } else {
+    if (W*h > H*w) { width=1; height=(float)(H*w)/(W*h); }
+    else { height=1; width=(float)(W*h)/(H*w); }
+    renderQuad(vec4(-width,-height,0,1),vec4(width,height,1,0));
+  }
 
   static GLShader marker_shader;
   if(!marker_shader.id) {
@@ -251,14 +259,29 @@ void Tracker::paintGL() {
     marker_shader.bindFragments("color");
   }
   marker_shader.bind();
-  transform_=mat4();
-  transform_.scale(vec3(2*width/W,2*height/H,1));
-  transform_.translate(vec3(-W/2,-H/2,0));
-  marker_shader["transform"] = transform_;
+  mat4 transform;
+  if (image >= 0 && track >= 0) {
+    Marker marker = tracks_->MarkerInImageForTrack(image,track);
+    vec2 center(marker.x,marker.y);
+    vec2 min = center-kSearchWindowSize;
+    vec2 max = center+kSearchWindowSize;
+    transform.translate(vec3(-1,-1,0));
+    transform.scale(vec3(2.0/(max-min).x,2.0/(max-min).y,1));
+    transform.translate(vec3(-min.x,-min.y,0));
+  } else {
+    transform.scale(vec3(2*width/W,2*height/H,1));
+    transform.translate(vec3(-W/2,-H/2,0));
+    transform_=transform;
+  }
+  marker_shader["transform"] = transform;
   markers_.bind();
   markers_.bindAttribute(&marker_shader,"position",2);
   glAdditiveBlendMode();
   markers_.draw();
+}
+
+void Tracker::paintGL() {
+  Render(width(),height());
 }
 
 void Tracker::mousePressEvent(QMouseEvent* e) {
@@ -294,6 +317,7 @@ void Tracker::mouseMoveEvent(QMouseEvent* e) {
   upload();
   last_position_=pos;
   dragged_=true;
+  emit trackChanged(selected_tracks_);
 }
 
 void Tracker::mouseReleaseEvent(QMouseEvent *) {
@@ -308,4 +332,21 @@ void Tracker::mouseReleaseEvent(QMouseEvent *) {
   active_track_ = -1;
   dragged_=false;
   upload();
+}
+
+Zoom::Zoom(QWidget *parent, Tracker *tracker)
+  : QGLWidget(QGLFormat(QGL::SampleBuffers),parent,tracker),
+    tracker_(tracker) {
+  setMinimumSize(4*kSearchWindowSize,4*kSearchWindowSize);
+  setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Fixed);
+}
+
+void Zoom::SetMarker(int image, int track) {
+  image_ = image;
+  track_ = track;
+  update();
+}
+
+void Zoom::paintGL() {
+  tracker_->Render(width(),height(),image_,track_);
 }
