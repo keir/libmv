@@ -1,14 +1,20 @@
 <RCC>
     <qresource prefix="/">
         <file alias="open">icons/document-open.png</file>
-        <file alias="play-backward">icons/media-play-backward.png</file>
-        <file alias="play-forward">icons/media-play-forward.png</file>
+        <file alias="view-image">icons/view-preview.png</file>
+        <file alias="view-zoom">icons/document-preview.png</file>
+        <file alias="view-scene">icons/view-scene.png</file>
+        <file alias="record">icons/media-record.png</file>
+        <file alias="delete">icons/edit-delete.png</file>
+        <file alias="delete-row">icons/edit-table-delete-row.png</file>
         <file alias="step-backward">icons/media-seek-backward.png</file>
         <file alias="step-forward">icons/media-seek-forward.png</file>
         <file alias="skip-backward">icons/media-skip-backward.png</file>
         <file alias="skip-forward">icons/media-skip-forward.png</file>
-        <file alias="record">icons/media-record.png</file>
-        <file alias="delete">icons/edit-delete.png</file>
-        <file alias="delete-row">icons/edit-table-delete-row.png</file>
+        <file alias="play-backward">icons/media-playback-start-backward.png</file>
+        <file alias="play-forward">icons/media-playback-start.png</file>
+        <file>shader.glsl</file>
+        <file alias="link">icons/insert-link.png</file>
+        <file alias="add">icons/list-add.png</file>
     </qresource>
 </RCC>

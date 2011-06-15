@@ -30,6 +30,7 @@ ELSE (WIN32)
               symbolize.cc
               utilities.cc
               vlog_is_on.cc)
+  TARGET_LINK_LIBRARIES(glog gflags)
 ENDIF (WIN32)
 
 MACRO (GLOG_TEST NAME)

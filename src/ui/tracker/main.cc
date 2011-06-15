@@ -18,8 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include "main.h"
-#include "tracker.h"
+#include "ui/tracker/main.h"
+#include "ui/tracker/tracker.h"
+#include "ui/tracker/view.h"
 
 #include <QDesktopWidget>
 #include <QGraphicsPixmapItem>
@@ -35,81 +36,90 @@
 
 #include "libmv/tools/tool.h"
 
-class Clip : public QObject {
- public:
-  Clip(QObject* parent=0) : QObject(parent) {}
-  void Open(QString path) {
-    cache_.setMaxCost(128 * 1024 * 1024);
-    if (path.endsWith(".avi")) {
-      // TODO(MatthiasF): load videos using ffmpeg
-      return;
-    }
-
-    image_filenames_.clear();
-    foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
-                                                QDir::Files, QDir::Name)) {
-      image_filenames_ << QDir(path).filePath(file);
-    }
+void Clip::Open(QString path) {
+  cache_.setMaxCost(64 * 1024 * 1024);
+  if (path.endsWith(".avi")) {
+    // TODO(MatthiasF): load videos using ffmpeg
+    return;
   }
 
-  QImage Frame(int frame) {
-    QImage* image = cache_[frame];
-    if (!image) {
-      image = new QImage(image_filenames_[frame]);
-      cache_.insert(frame, image, image->byteCount());
-    }
-    return *image;
+  clear();
+  foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
+                                              QDir::Files, QDir::Name)) {
+    append( QDir(path).filePath(file) );
   }
+}
 
-  int size() const { return image_filenames_.size(); }
-
- private:
-  QList<QString> image_filenames_;
-  QCache<int, QImage> cache_;
-};
-
-class View : public QGraphicsView {
-public:
-  View(QGraphicsScene *scene) {
-    setScene(scene);
-    setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
-    setFrameShape(QFrame::NoFrame);
-    setDragMode(QGraphicsView::ScrollHandDrag);
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+QImage Clip::Frame(int frame) {
+  QImage* image = cache_[frame];
+  if (!image) {
+    image = new QImage(value(frame));
+    cache_.insert(frame, image, image->byteCount());
   }
-};
+  return *image;
+}
+
+TrackerView::TrackerView(QGraphicsScene *scene,QWidget *parent)
+  : QGraphicsView(scene,parent) {
+  setRenderHints(QPainter::Antialiasing|QPainter::SmoothPixmapTransform);
+  setDragMode(QGraphicsView::ScrollHandDrag);
+  setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+}
 
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
     tracker_(new Tracker(this)),
-    view_(new View(tracker_)),
-    zoom_view_(new View(tracker_)),
-    current_frame_(-1) {
-  connect(tracker_, SIGNAL(trackChanged(QGraphicsItem*)), SLOT(viewTrack(QGraphicsItem*)));
-
-  setWindowTitle("LibMV Simple Tracker");
+    pixmap_(0), overlay_(0), current_frame_(-1),
+    image_view_(new TrackerView(tracker_)),
+    zoom_view_(new TrackerView(tracker_)),
+    scene_view_(new View()) {
+  setWindowTitle("Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
 
-  QDockWidget* detail_dock = new QDockWidget("Selected Track Details");
-  detail_dock->setObjectName("detailDock");
-  addDockWidget(Qt::TopDockWidgetArea, detail_dock);
-  const int kZoomFactor = 2;
-  zoom_view_->setMinimumSize(kZoomFactor * TrackItem::kSearchWindowSize,
-                             kZoomFactor * TrackItem::kSearchWindowSize);
-  detail_dock->setWidget(zoom_view_);
-
-  // Create the toolbar.
   QToolBar* toolbar = addToolBar("Main Toolbar");
   toolbar->setObjectName("mainToolbar");
 
   toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
-  QToolButton* delete_button = new QToolButton;
+
+  setCentralWidget(image_view_);
+  //image_view_->setVisible(QSettings().value("showImage").toBool());
+  QAction* image_action_ = toolbar->addAction(QIcon(":/view-image"),"Image View");
+  image_action_->setCheckable(true);
+  image_action_->setChecked(image_view_->isVisible());
+  connect(image_action_,SIGNAL(triggered(bool)),image_view_,SLOT(setVisible(bool)));
+  connect(image_view_, SIGNAL(geometryChanged()), SLOT(fitImage()));
+
+  QDockWidget* zoom_dock = new QDockWidget("Zoom View");
+  zoom_dock->setObjectName("zoomDock");
+  addDockWidget(Qt::TopDockWidgetArea, zoom_dock);
+  const int kZoomFactor = 2;
+  zoom_view_->setMinimumSize(kZoomFactor * TrackItem::kSearchWindowSize,
+                             kZoomFactor * TrackItem::kSearchWindowSize);
+  zoom_view_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
+  zoom_dock->setWidget(zoom_view_);
+  zoom_dock->toggleViewAction()->setIcon(QIcon(":/view-zoom"));
+  toolbar->addAction(zoom_dock->toggleViewAction());
+  connect(tracker_, SIGNAL(trackChanged(QGraphicsItem*)), SLOT(fitZoom(QGraphicsItem*)));
+
+  QDockWidget* scene_dock = new QDockWidget("Scene View");
+  scene_dock->setObjectName("sceneDock");
+  addDockWidget(Qt::BottomDockWidgetArea, scene_dock);
+  scene_dock->setWidget(scene_view_);
+  scene_dock->toggleViewAction()->setIcon(QIcon(":/view-scene"));
+  toolbar->addAction(scene_dock->toggleViewAction());
+  connect(scene_view_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
+  connect(scene_view_, SIGNAL(objectChanged()), SLOT(updateOverlay()));
+
+  toolbar->addSeparator();
+
+  QToolButton* delete_button = new QToolButton();
+  toolbar->addWidget(delete_button);
   QMenu* delete_popup = new QMenu(this);
   delete_popup->addAction(QIcon(":/delete"),
-                         "Delete current marker",
-                         tracker_, SLOT(deleteCurrentMarker()));
+                          "Delete current marker",
+                          tracker_, SLOT(deleteCurrentMarker()));
   QAction* delete_track = delete_popup->addAction(QIcon(":/delete-row"),
                                                 "Delete current track",
                                                 tracker_,
@@ -119,10 +129,23 @@ MainWindow::MainWindow()
   delete_button->setPopupMode(QToolButton::MenuButtonPopup);
   connect(delete_popup,SIGNAL(triggered(QAction*)),
           delete_button,SLOT(setDefaultAction(QAction*)));
-  toolbar->addWidget(delete_button);
+
   track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
+  connect(image_action_, SIGNAL(triggered(bool)), track_action_, SLOT(setVisible(bool)));
+  track_action_->setVisible(image_view_->isVisible());
+
+  QAction* add_action = toolbar->addAction(QIcon(":/add"), "Add object", scene_view_, SLOT(add()));
+  connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
+          add_action, SLOT(setVisible(bool)));
+
+  QAction* link_action = toolbar->addAction(QIcon(":/link"), "Link active object to selected bundles",
+                                            scene_view_, SLOT(link()));
+  connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
+          link_action, SLOT(setVisible(bool)));
+
+  toolbar->addSeparator();
 
   toolbar->addAction(QIcon(":/skip-backward"), "Seek to first frame",
                      this, SLOT(first()));
@@ -149,26 +172,29 @@ MainWindow::MainWindow()
       ->setShortcut(QKeySequence("Right"));
   toolbar->addAction(QIcon(":/skip-forward"), "Last Frame",this, SLOT(last()));
 
-  setCentralWidget(view_);
-
   restoreGeometry(QSettings().value("geometry").toByteArray());
   restoreState(QSettings().value("windowState").toByteArray());
-
-  QStringList args = qApp->arguments();
-  args.removeFirst();
-  if (args.isEmpty()) {
-    open();
-  } else {
-    open(args.first());
+}
+void MainWindow::Save(QString name,QByteArray data) {
+  QFile file(QDir(path_).filePath(name));
+  if (file.open(QFile::WriteOnly | QIODevice::Truncate)) {
+    file.write(data);
   }
 }
 MainWindow::~MainWindow() {
+  //QSettings().setValue("showImage", image_view_->isVisible());
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
-  QFile tracks(path_+"/tracks");
-  if (tracks.open(QFile::WriteOnly | QIODevice::Truncate)) {
-    tracks.write(tracker_->Save());
-  }
+  if(clip_->isEmpty()) return;
+  Save("tracks",tracker_->Save());
+  Save("cameras",scene_view_->SaveCameras());
+  Save("bundles",scene_view_->SaveBundles());
+  Save("objects",scene_view_->SaveObjects());
+}
+
+QByteArray MainWindow::Load(QString name) {
+  QFile file(QDir(path_).filePath(name));
+  return file.open(QFile::ReadOnly) ? file.readAll() : QByteArray();
 }
 
 void MainWindow::open() {
@@ -176,22 +202,19 @@ void MainWindow::open() {
 }
 
 void MainWindow::open(QString path) {
-  if (path.isNull() || !QDir(path).exists()) {
-    open();
-    return;
-  }
-  tracker_->clear();
-  pixmap_ = 0;
-  path_ = path;
+  if (path.isEmpty() || !QDir(path).exists()) return;
   clip_->Open(path);
-  if (clip_->size() == 0) {
-    open();
-    return;
-  }
-  QFile tracks(path + "/tracks");
-  if (tracks.open(QFile::ReadOnly)) {
-    tracker_->Load(tracks.readAll());
-  }
+  if(clip_->isEmpty()) return;
+  pixmap_ = 0;
+  overlay_ = 0;
+  tracker_->clear();
+  path_ = path;
+  setWindowTitle(QString("Tracker - %1").arg(QDir(path).dirName()));
+  tracker_->Load(Load("tracks"));
+  scene_view_->LoadCameras(Load("cameras"));
+  scene_view_->LoadBundles(Load("bundles"));
+  scene_view_->LoadObjects(Load("objects"));
+  scene_view_->upload();
   spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
   first();
@@ -216,8 +239,11 @@ void MainWindow::seek(int frame) {
   QImage image = clip_->Frame(current_frame_);
   if (!pixmap_) {
     pixmap_ = tracker_->addPixmap(QPixmap::fromImage(image));
-    view_->setMinimumSize(image.size()/2);
-    view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+    overlay_ = tracker_->addPixmap(QPixmap());
+    overlay_->setZValue(1);
+    image_view_->setMinimumSize(image.size()/2);
+    image_view_->setMaximumSize(image.size());
+    image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
   } else {
     pixmap_->setPixmap(QPixmap::fromImage(image));
   }
@@ -226,6 +252,7 @@ void MainWindow::seek(int frame) {
   slider_.setValue(current_frame_);
   spinbox_.setValue(current_frame_);
   tracker_->SetFrame(current_frame_, image, track_action_->isChecked());
+  updateOverlay();
 }
 
 void MainWindow::toggleTracking(bool track) {
@@ -282,21 +309,34 @@ void MainWindow::last() {
   seek(clip_->size() - 1);
 }
 
-void MainWindow::viewTrack(QGraphicsItem* item) {
+void MainWindow::fitImage() {
+  if(pixmap_) image_view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+  updateOverlay();
+}
+
+void MainWindow::fitZoom(QGraphicsItem* item) {
   if (!zoom_view_->hasFocus()) {
     zoom_view_->fitInView(item, Qt::KeepAspectRatio);
   }
 }
 
-void MainWindow::resizeEvent(QResizeEvent *) {
-  view_->fitInView(pixmap_, Qt::KeepAspectRatio);
+void MainWindow::updateOverlay() {
+  if(!image_view_->isVisible()) return;
+  if(overlay_) {
+    overlay_->setPixmap(
+          scene_view_->renderCamera(pixmap_->pixmap().width(),pixmap_->pixmap().height(),
+                                    current_frame_));
+  }
 }
 
 int main(int argc, char *argv[]) {
   libmv::Init("", &argc, &argv);
   QApplication app(argc, argv);
+  app.setOrganizationName("libmv");
+  app.setApplicationName("tracker");
   MainWindow window;
   window.show();
+  window.open(app.arguments().value(1));
   return app.exec();
 }
 

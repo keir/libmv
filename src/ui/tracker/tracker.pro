@@ -1,14 +1,30 @@
-HEADERS += tracker.h main.h
-SOURCES += tracker.cc main.cc
+QT += opengl
+HEADERS += view.h gl.h tracker.h main.h
+SOURCES += view.cc gl.cc tracker.cc main.cc
+OTHER_FILES += shader.glsl
 RESOURCES = tracker.qrc
 INCLUDEPATH += ../..
 INCLUDEPATH += /usr/include/eigen3/
 INCLUDEPATH += ../../third_party/glog/src
 
 CONFIG(debug, debug|release) {
- LIBS += -L../../../bin-dbg/lib/ -limage_d -ltracking_d -lsimple_pipeline_d -lglog -lgflags
+ #LIBS += -L../../../bin-dbg/lib/ -lsimple_pipeline_d -limage_d -ltracking_d -lmultiview_d -lglog -lgflags
+ LIBS += -L../../../bin-opt/lib/ -lsimple_pipeline -limage -ltracking -lmultiview -lglog -lgflags
 } else {
- LIBS += -L../../../bin-opt/lib/ -limage -ltracking -lsimple_pipeline
+ LIBS += -L../../../bin-opt/lib/ -lsimple_pipeline -limage -ltracking -lmultiview -lglog -lgflags
+}
+
+win32:CONFIG+=glew
+glew {
+ DEFINES += GLEW
+ win32 {
+  HEADERS += GL/glew.h GL/wglew.h
+  SOURCES += glew.c
+  DEFINES += GLEW_STATIC
+ }
+ unix {
+  LIBS += -lGLEW
+ }
 }
 
 profiler {

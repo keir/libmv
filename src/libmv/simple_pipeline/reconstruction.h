@@ -27,29 +27,32 @@
 
 namespace libmv {
 
+struct Camera {
+  Camera() : image(-1) {}
+  Camera(const Camera &c) : image(c.image), R(c.R), t(c.t) {}
+
+  int image;
+  Mat3 R;
+  Vec3 t;
+};
+
+struct Point {
+  int track;
+  Vec3 X;
+};
+
 class Reconstruction {
  public:
-  struct Camera {
-    Camera() : image(-1) {}
-    Camera(const Camera &c) : image(c.image), R(c.R), t(c.t) {}
-
-    int image;
-    Mat3 R;
-    Vec3 t;
-  };
-
-  struct Point {
-    int track;
-    Vec3 X;
-  };
-
   Reconstruction();
 
   void InsertCamera(int image, const Mat3 &R, const Vec3 &t);
   void InsertPoint(int track, const Vec3 &X);
 
   Camera *CameraForImage(int image);
+  std::vector<Camera> AllCameras();
+
   Point *PointForTrack(int track);
+  std::vector<Point> AllPoints();
 
  private:
   std::vector<Camera> cameras_;

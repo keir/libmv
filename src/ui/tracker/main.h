@@ -18,22 +18,46 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef SRC_UI_TRACKER_MAIN_H_
-#define SRC_UI_TRACKER_MAIN_H_
+#ifndef UI_TRACKER_MAIN_H_
+#define UI_TRACKER_MAIN_H_
 
 #include <QApplication>
 #include <QMainWindow>
+#include <QGraphicsView>
 #include <QToolBar>
 #include <QSpinBox>
 #include <QAction>
 #include <QSlider>
+#include <QCache>
 #include <QTimer>
 
-class Clip;
 class Tracker;
-class View;
 class QGraphicsItem;
+class QGraphicsScene;
 class QGraphicsPixmapItem;
+class View;
+
+class Clip : public QObject, public QList<QString>   {
+  Q_OBJECT
+ public:
+  Clip(QObject* parent=0) : QObject(parent) {}
+  void Open(QString path);
+  QImage Frame(int frame);
+ private:
+  QCache<int, QImage> cache_;
+};
+
+class TrackerView : public QGraphicsView {
+  Q_OBJECT
+ public:
+  TrackerView(QGraphicsScene *scene,QWidget *parent = 0);
+ signals:
+  void geometryChanged();
+ protected:
+  void resizeEvent(QResizeEvent*) {
+    emit geometryChanged();
+  }
+};
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -43,38 +67,44 @@ class MainWindow : public QMainWindow {
 
  public slots:
   void open();
+  void open(QString);
   void seek(int);
   void toggleTracking(bool);
   void toggleBackward(bool);
   void toggleForward(bool);
+  void stop();
   void first();
   void previous();
   void next();
   void last();
-  void stop();
-  void viewTrack(QGraphicsItem*);
 
- protected:
-  void resizeEvent(QResizeEvent *);
+  void fitImage();
+  void fitZoom(QGraphicsItem*);
+  void updateOverlay();
 
  private:
-  void open(QString);
+  QByteArray Load(QString name);
+  void Save(QString name,QByteArray data);
 
   QString path_;
   Clip *clip_;
   Tracker *tracker_;
   QGraphicsPixmapItem *pixmap_;
+  QGraphicsPixmapItem *overlay_;
+  int current_frame_;
 
   QAction *track_action_;
   QAction *backward_action_;
   QAction *forward_action_;
   QSpinBox spinbox_;
   QSlider slider_;
-  View *view_;
-  View *zoom_view_;
+
+  TrackerView *image_view_;
+  TrackerView *zoom_view_;
+  View* scene_view_;
+
   QTimer previous_timer_;
   QTimer next_timer_;
-  int current_frame_;
 };
 #endif
 

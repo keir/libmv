@@ -46,12 +46,32 @@ void Reconstruction::InsertPoint(int track, const Vec3 &X) {
   points_[track].X = X;
 }
 
-Reconstruction::Camera *Reconstruction::CameraForImage(int image) {
+Camera *Reconstruction::CameraForImage(int image) {
   return (cameras_[image].image == -1) ? NULL : &cameras_[image];
 }
 
-Reconstruction::Point *Reconstruction::PointForTrack(int track) {
+std::vector<Camera> Reconstruction::AllCameras() {
+  std::vector<Camera> cameras;
+  for (int i = 0; i < cameras_.size(); ++i) {
+    if (cameras_[i].image != -1) {
+      cameras.push_back(cameras_[i]);
+    }
+  }
+  return cameras;
+}
+
+Point *Reconstruction::PointForTrack(int track) {
   return (points_[track].track == -1) ? NULL : &points_[track];
+}
+
+std::vector<Point> Reconstruction::AllPoints() {
+  std::vector<Point> points;
+  for (int i = 0; i < points_.size(); ++i) {
+    if (points_[i].track != -1) {
+      points.push_back(points_[i]);
+    }
+  }
+  return points;
 }
 
 }  // namespace libmv

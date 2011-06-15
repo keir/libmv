@@ -1,42 +1,15 @@
 # define the source files
 SET(MULTIVIEW_SRC projection.cc
                   fundamental.cc
-                  fundamental_kernel.cc
-                  panography_kernel.cc
-                  robust_fundamental.cc
-                  homography.cc
-                  homography_kernel.cc
-                  robust_estimation.cc
-                  focal_from_fundamental.cc
-                  sixpointnview.cc
                   triangulation.cc
-                  bundle.cc
-                  autocalibration.cc
-                  five_point.cc
-                  affine.cc
-                  affine_kernel.cc
-                  robust_affine.cc
-                  robust_homography.cc
-                  robust_similarity.cc
-                  robust_resection.cc
-                  robust_euclidean_resection.cc
-                  euclidean_resection.cc
-                  twoviewtriangulation.cc
-                  structure.cc
-                  conditioning.cc
-                  essential_kernel.cc
-                  similarity.cc
-                  similarity_kernel.cc
-                  euclidean.cc
-                  euclidean_kernel.cc
-                  robust_euclidean.cc)
+                  conditioning.cc)
 
 # define the header files (make the headers appear in IDEs.)
 FILE(GLOB MULTIVIEW_HDRS *.h)
 
 ADD_LIBRARY(multiview ${MULTIVIEW_SRC} ${MULTIVIEW_HDRS})
 
-TARGET_LINK_LIBRARIES(multiview numeric V3D colamd ldl)
+TARGET_LINK_LIBRARIES(multiview numeric V3D colamd ldl glog)
 
 # make the name of debug libraries end in _d.
 SET_TARGET_PROPERTIES(multiview PROPERTIES DEBUG_POSTFIX "_d")
@@ -45,10 +18,10 @@ SET_TARGET_PROPERTIES(multiview PROPERTIES DEBUG_POSTFIX "_d")
 LIBMV_INSTALL_LIB(multiview)
 
 IF (BUILD_TESTS)
-ADD_LIBRARY(multiview_test_data
-            test_data_sets.cc)
-# make the name of debug libraries end in _d.
-SET_TARGET_PROPERTIES(multiview_test_data PROPERTIES DEBUG_POSTFIX "_d")
+  ADD_LIBRARY(multiview_test_data test_data_sets.cc)
+  TARGET_LINK_LIBRARIES(multiview_test_data multiview)
+  # make the name of debug libraries end in _d.
+  SET_TARGET_PROPERTIES(multiview_test_data PROPERTIES DEBUG_POSTFIX "_d")
 ENDIF (BUILD_TESTS)
 
 MACRO (MULTIVIEW_TEST NAME)
