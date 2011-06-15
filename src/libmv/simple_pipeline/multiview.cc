@@ -32,10 +32,18 @@ namespace libmv {
 void CoordinatesForMarkersInImage(const vector<Marker> &markers,
                                   int image,
                                   Mat *coordinates) {
-  (void) markers;
-  (void) image;
-  (void) coordinates;
-  // XXX
+  // Figure out how many coordinates.
+  int num_coordinates_for_image = 0;
+  for (int i = 0; i < markers.size(); ++i) {
+    num_coordinates_for_image += (markers[i].image == image);
+  }
+  coordinates->resize(2, num_coordinates_for_image);
+  for (int i = 0; i < markers.size(); ++i) {
+    if (markers[i].image == image) {
+      (*coordinates)(0, i) = markers[i].x;
+      (*coordinates)(1, i) = markers[i].y;
+    }
+  }
 }
 
 void GetImagesInMarkers(const vector<Marker> &markers,
@@ -77,7 +85,7 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
   Vec3 dt;
   Mat3 K = Mat3::Identity();
   if (!MotionFromEssentialAndCorrespondence(
-          E, K, x1.col(0), K, x2.col(0), &dR, &dt)) {
+        E, K, x1.col(0), K, x2.col(0), &dR, &dt)) {
     return false;
   }
 
