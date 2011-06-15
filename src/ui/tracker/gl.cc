@@ -146,6 +146,8 @@ void GLTexture::upload(QImage image) {
   glTexImage2D(GL_TEXTURE_2D,0,image.depth()/8,width=image.width(),height=image.height(),
                0,GL_BGRA,GL_UNSIGNED_BYTE,image.constBits());
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void GLTexture::bind(int sampler) {
@@ -192,7 +194,7 @@ QString glsl(QString tags) {
   QString global,main;
   while(!file.atEnd()) {
     foreach(QString line,filterGLSL(file,tags.split(" ")).split("\n")) {
-      if(!line.indexOf(QRegExp("uniform|varying|in|out|(float|vec[1234]|mat[234]) [a-zA-Z0-9]*\\("))) {
+      if(!line.indexOf(QRegExp("uniform|attribute|varying|in|out|(float|vec[1234]|mat[234]) [a-zA-Z0-9]*\\("))) {
         global+=line+"\n";
       } else {
         main+=line+"\n";

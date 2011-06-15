@@ -15,7 +15,7 @@ CONFIG(debug, debug|release) {
 }
 
 win32:CONFIG+=glew
-CONFIG+=glew
+exists(/usr/include/GL/glew.h):CONFIG+=glew
 glew {
  DEFINES += GLEW
  win32 {

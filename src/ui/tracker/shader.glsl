@@ -1,5 +1,5 @@
 vertex {
-  varying in vec4 position;
+  attribute vec4 position;
   image {
     gl_Position = vec4(position.xy,0,1);
     varying out vec2 texCoord;

@@ -121,9 +121,9 @@ void Tracker::SetImage(int image, QImage new_image, bool track) {
   if (track) {
     vector<Marker> previous_markers = tracks_->MarkersInImage(previous_image);
     foreach (const Marker &marker, previous_markers) {
-      if (!selected_tracks_.contains(marker.track)) {
+      /*if (!selected_tracks_.contains(marker.track)) {
         continue;
-      }
+      }*/
       // TODO(keir): For now this uses a fixed size region. What's needed is
       // an extension to use custom sized boxes around the tracked point.
       int size = 64;
