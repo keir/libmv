@@ -73,6 +73,7 @@ class MainWindow : public QMainWindow {
   QVector<Zoom*> zooms_;
   QVector<QDockWidget*> zooms_docks_;
   int current_frame_;
+  QAction *zoom_action_;
   QAction *track_action_;
   QAction *backward_action_;
   QAction *forward_action_;

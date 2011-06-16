@@ -213,11 +213,21 @@ void Tracker::DrawMarker(libmv::Marker marker, QVector<vec2> &lines) {
   }
 }
 
+bool compare_image(const Marker &a, const Marker &b) {
+    return a.image < b.image;
+}
+
+
 void Tracker::upload() {
   vector<Marker> markers = tracks_->MarkersInImage(current_image_);
   QVector<vec2> lines; lines.reserve(markers.size()*8);
   foreach(Marker marker, markers) {
     DrawMarker(marker,lines);
+    vector<Marker> track = tracks_->MarkersForTrack(marker.track);
+    std::sort(track.begin(),track.end(),compare_image);
+    for(size_t i=0; i<track.size()-1; i++) {
+      lines << vec2(track[i].x,track[i].y) << vec2(track[i+1].x,track[i+1].y);
+    }
   }
   foreach(int track, selected_tracks_) {
     Marker marker = tracks_->MarkerInImageForTrack(current_image_,track);
@@ -241,7 +251,7 @@ void Tracker::Render(int w, int h, int image, int track) {
   image_.bind(0);
   int W=image_.width;
   int H=image_.height;
-  float width,height;
+  float width=0,height=0;
   if (image >= 0 && track >= 0) {
     Marker marker = tracks_->MarkerInImageForTrack(image,track);
     vec2 center(marker.x,marker.y);
@@ -252,12 +262,13 @@ void Tracker::Render(int w, int h, int image, int track) {
     if (W*h > H*w) { width=1; height=(float)(H*w)/(W*h); }
     else { height=1; width=(float)(W*h)/(H*w); }
     glQuad(vec4(-width,-height,0,1),vec4(width,height,1,0));
-    scene_->Render(w,h,current_image_);
+    if(scene_->isVisible()) scene_->Render(w,h,current_image_);
   }
 
   static GLShader marker_shader;
   if(!marker_shader.id) {
-    marker_shader.compile(glsl("vertex transform marker"),glsl("fragment transform marker"));
+    marker_shader.compile(glsl("vertex transform marker"),
+                          glsl("fragment transform marker"));
   }
   marker_shader.bind();
   mat4 transform;
@@ -266,8 +277,8 @@ void Tracker::Render(int w, int h, int image, int track) {
     vec2 center(marker.x,marker.y);
     vec2 min = center-kSearchWindowSize;
     vec2 max = center+kSearchWindowSize;
-    transform.translate(vec3(-1,-1,0));
-    transform.scale(vec3(2.0/(max-min).x,2.0/(max-min).y,1));
+    transform.translate(vec3(-1,1,0));
+    transform.scale(vec3(2.0/(max-min).x,-2.0/(max-min).y,1));
     transform.translate(vec3(-min.x,-min.y,0));
   } else {
     transform.scale(vec3(2*width/W,-2*height/H,1));

@@ -66,7 +66,8 @@ MainWindow::MainWindow()
     current_frame_(-1) {
   setWindowTitle("Tracker");
   setCentralWidget(tracker_);
-  connect(tracker_, SIGNAL(trackChanged(QVector<int>)), this, SLOT(updateZooms(QVector<int>)));
+  connect(tracker_, SIGNAL(trackChanged(QVector<int>)),
+          this, SLOT(updateZooms(QVector<int>)));
 
   QToolBar* toolbar = addToolBar("Main Toolbar");
   toolbar->setObjectName("mainToolbar");
@@ -76,10 +77,12 @@ MainWindow::MainWindow()
 
   QAction* tracker_action_ = toolbar->addAction(QIcon(":/view-image"),"Tracker View");
   tracker_action_->setCheckable(true);
+  tracker_action_->setChecked(true);
   connect(tracker_action_,SIGNAL(triggered(bool)),tracker_,SLOT(setVisible(bool)));
 
-  QAction* zoom_action_ = toolbar->addAction(QIcon(":/view-zoom"),"Zoom View");
+  zoom_action_ = toolbar->addAction(QIcon(":/view-zoom"),"Zoom View");
   zoom_action_->setCheckable(true);
+  zoom_action_->setChecked(true);
   connect(zoom_action_,SIGNAL(triggered(bool)),this,SLOT(toggleZoom(bool)));
 
   QDockWidget* scene_dock = new QDockWidget("Scene View");
@@ -87,9 +90,11 @@ MainWindow::MainWindow()
   addDockWidget(Qt::BottomDockWidgetArea, scene_dock);
   scene_dock->setWidget(scene_);
   scene_dock->toggleViewAction()->setIcon(QIcon(":/view-scene"));
+  scene_dock->toggleViewAction()->setChecked(false);
   toolbar->addAction(scene_dock->toggleViewAction());
   connect(scene_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
-  connect(scene_, SIGNAL(trackChanged(QVector<int>)), tracker_, SLOT(select(QVector<int>)));
+  connect(scene_, SIGNAL(trackChanged(QVector<int>)),
+          tracker_, SLOT(select(QVector<int>)));
 
   toolbar->addSeparator();
 
@@ -112,14 +117,17 @@ MainWindow::MainWindow()
   track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
-  connect(tracker_action_, SIGNAL(triggered(bool)), track_action_, SLOT(setVisible(bool)));
+  connect(tracker_action_, SIGNAL(triggered(bool)),
+          track_action_, SLOT(setVisible(bool)));
 
-  QAction* add_action = toolbar->addAction(QIcon(":/add"), "Add object", scene_, SLOT(add()));
+  QAction* add_action = toolbar->addAction(QIcon(":/add"), "Add object",
+                                           scene_, SLOT(add()));
   connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
           add_action, SLOT(setVisible(bool)));
 
-  QAction* link_action = toolbar->addAction(QIcon(":/link"), "Link active object to selected bundles",
-                                            scene_, SLOT(link()));
+  QAction* link_action = toolbar->addAction(
+        QIcon(":/link"),"Link active object to selected bundles",
+        scene_, SLOT(link()));
   connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
           link_action, SLOT(setVisible(bool)));
 
@@ -333,6 +341,7 @@ void MainWindow::toggleZoom(bool zoom) {
 }
 
 void MainWindow::updateZooms(QVector<int> tracks) {
+  if(!zoom_action_->isChecked()) return;
   if(!zooms_docks_.isEmpty() && tracks.size()*zooms_docks_.first()->width() > width()) {
     tracks.resize(width() / zooms_docks_.first()->width());
   }

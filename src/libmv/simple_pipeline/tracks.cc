@@ -134,7 +134,7 @@ void Tracks::RemoveMarker(int image, int track) {
 
 int Tracks::MaxImage() const {
   // TODO(MatthiasF): maintain a max_image_ member (updated on Insert)
-  int max_image = -1;
+  int max_image = 0;
   for (int i = 0; i < markers_.size(); ++i) {
     max_image = std::max(markers_[i].image, max_image);
   }
@@ -143,7 +143,7 @@ int Tracks::MaxImage() const {
 
 int Tracks::MaxTrack() const {
   // TODO(MatthiasF): maintain a max_track_ member (updated on Insert)
-  int max_track = -1;
+  int max_track = 0;
   for (int i = 0; i < markers_.size(); ++i) {
     max_track = std::max(markers_[i].track, max_track);
   }

@@ -261,9 +261,6 @@ void Scene::Render(int w,int h,int image) {
     view_=mat4(); view_.rotateX(-pitch_); view_.rotateZ(-yaw_); view_.translate(-position_);
     transform = projection_ * view_;
   }
-#ifdef RANDOM
-  transform = projection_ * view_;
-#endif
 
   /// Display bundles
   static GLShader bundle_shader;
