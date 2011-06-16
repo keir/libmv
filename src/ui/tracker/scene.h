@@ -49,7 +49,7 @@ class Scene : public QGLWidget {
   QByteArray SaveBundles();
   QByteArray SaveObjects();
   void SetImage(int);
-  void RenderOverlay(int w,int h,int image);
+  void Render(int w,int h,int image);
   
  public slots:
   void select(QVector<int>);

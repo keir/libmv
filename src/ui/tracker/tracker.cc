@@ -252,7 +252,7 @@ void Tracker::Render(int w, int h, int image, int track) {
     if (W*h > H*w) { width=1; height=(float)(H*w)/(W*h); }
     else { height=1; width=(float)(W*h)/(H*w); }
     glQuad(vec4(-width,-height,0,1),vec4(width,height,1,0));
-    scene_->RenderOverlay(w,h,current_image_);
+    scene_->Render(w,h,current_image_);
   }
 
   static GLShader marker_shader;

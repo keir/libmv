@@ -241,12 +241,29 @@ void Scene::upload() {
   update();
 }
 
-void Scene::paintGL() {
-  int w=width(), h=height();
-  projection_=mat4(); projection_.perspective(PI/4, (float)w/h, 1, 16384);
-  view_=mat4(); view_.rotateX(-pitch_); view_.rotateZ(-yaw_); view_.translate(-position_);
-  glBindWindow(w,h);
-  glAdditiveBlendMode();
+void Scene::Render(int w,int h,int image) {
+  /// Compute camera projection
+  mat4 transform;
+  if(image >=0) {
+    // TODO(MatthiasF): match real image projection.
+    Camera camera = *reconstruction_->CameraForImage(image);
+    mat4 projection; projection.perspective(PI/4, (float)w/h, 1, 16384);
+    mat4 rotation;
+    // FIXME: this is probably wrong, need to inverse the rotation.
+    for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
+      rotation(i,j)=camera.R(i,j);
+    }
+    mat4 translation;
+    translation.translate(-vec3(camera.t.x(), camera.t.y(), camera.t.z()));
+    transform = projection * rotation * translation;
+  } else {
+    projection_=mat4(); projection_.perspective(PI/4, (float)w/h, 1, 16384);
+    view_=mat4(); view_.rotateX(-pitch_); view_.rotateZ(-yaw_); view_.translate(-position_);
+    transform = projection_ * view_;
+  }
+#ifdef RANDOM
+  transform = projection_ * view_;
+#endif
 
   /// Display bundles
   static GLShader bundle_shader;
@@ -254,10 +271,10 @@ void Scene::paintGL() {
     bundle_shader.compile(glsl("vertex transform bundle"),glsl("fragment bundle"));
   }
   bundle_shader.bind();
-  bundle_shader["transform"] = projection_*view_;
-  bundle_shader["pointSize"] = (float)w;
+  bundle_shader["transform"] = transform;
   bundles_.bind();
   bundles_.bindAttribute(&bundle_shader,"position",3);
+  glAdditiveBlendMode();
   bundles_.draw();
 
   /// Display cameras
@@ -266,7 +283,7 @@ void Scene::paintGL() {
     camera_shader.compile(glsl("vertex transform camera"),glsl("fragment camera"));
   }
   camera_shader.bind();
-  camera_shader["transform"] = projection_*view_;
+  camera_shader["transform"] = transform;
   cameras_.bind();
   cameras_.bindAttribute(&camera_shader,"position",3);
   cameras_.draw();
@@ -277,39 +294,16 @@ void Scene::paintGL() {
     object_shader.compile(glsl("vertex transform object"),glsl("fragment object"));
   }
   object_shader.bind();
-  object_shader["transform"] = projection_*view_;
+  object_shader["transform"] = transform;
   cubes_.bind();
   cubes_.bindAttribute(&object_shader,"position",3);
   cubes_.draw();
 }
 
-void Scene::RenderOverlay(int w,int h,int image) {
-  /// Compute camera projection
-  // TODO(MatthiasF): match real image projection.
-  Camera camera = *reconstruction_->CameraForImage(image);
-  mat4 projection; projection.perspective(PI/4, (float)w/h, 1, 16384);
-  mat4 rotation;
-  // FIXME: this is probably wrong, need to inverse the rotation.
-  for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
-    rotation(i,j)=camera.R(i,j);
-  }
-  mat4 translation;
-  translation.translate(-vec3(camera.t.x(), camera.t.y(), camera.t.z()));
-  mat4 view = rotation * translation;
-#ifdef RANDOM
-  view = view_;
-#endif
 
-  /// Render objects
-  static GLShader object_shader;
-  if(!object_shader.id) {
-    object_shader.compile(glsl("vertex transform object"),glsl("fragment object"));
-  }
-  object_shader.bind();
-  object_shader["transform"] = projection*view;
-  cubes_.bind();
-  cubes_.bindAttribute(&object_shader,"position",3);
-  cubes_.draw();
+void Scene::paintGL() {
+  glBindWindow(width(),height());
+  Render(width(),height(),-1);
 }
 
 void Scene::keyPressEvent(QKeyEvent* e) {

@@ -10,8 +10,7 @@ vertex {
     gl_Position = transform * position;
   }
   bundle {
-    uniform float pointSize;
-    gl_PointSize = pointSize / length(gl_Position);
+    gl_PointSize = 5;
   }
 }
 
@@ -25,7 +24,7 @@ fragment {
     gl_FragColor = vec4(0,0.25,0,1);
   }
   bundle {
-    gl_FragColor = vec4(0,0.25,0,1) * (1-length(2*gl_PointCoord.xy-vec2(1,1)));
+    gl_FragColor = vec4(0,0.25,0,1) * (1-step(1,length(2*gl_PointCoord.xy-vec2(1,1))));
   }
   camera {
     gl_FragColor = vec4(0.25,0,0,1);
