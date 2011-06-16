@@ -40,7 +40,7 @@ struct Object {
 class Scene : public QGLWidget {
   Q_OBJECT
  public:
-  Scene(QGLWidget *shareWidget = 0);
+  Scene(libmv::Reconstruction* reconstruction, QGLWidget *shareWidget = 0);
   ~Scene();
   void LoadCameras(QByteArray data);
   void LoadBundles(QByteArray data);
@@ -76,13 +76,11 @@ class Scene : public QGLWidget {
   void DrawCamera(libmv::Camera camera, QVector<vec3>& lines);
   void DrawObject(Object object, QVector<vec3>& quads);
 
-  QScopedPointer<libmv::Reconstruction> reconstruction_;
+  libmv::Reconstruction* reconstruction_;
   QVector<Object> objects_;
-
   GLBuffer bundles_;
   GLBuffer cameras_;
   GLBuffer cubes_;
-
   QPoint drag_;
   bool grab_;
   float pitch_,yaw_,speed_;
@@ -93,7 +91,6 @@ class Scene : public QGLWidget {
   QBasicTimer timer_;
   mat4 projection_;
   mat4 view_;
-
   QVector<int> selected_tracks_;
   int current_image_;
   Object* active_object_;

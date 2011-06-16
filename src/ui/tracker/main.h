@@ -27,6 +27,11 @@
 #include <QCache>
 #include <QTimer>
 
+namespace libmv {
+class Tracks;
+class Reconstruction;
+} // namespace libmv
+
 class Tracker;
 class Zoom;
 class Scene;
@@ -61,6 +66,7 @@ class MainWindow : public QMainWindow {
   void toggleForward(bool);
   void toggleZoom(bool);
   void updateZooms(QVector<int>);
+  void solve();
 
  private:
   QByteArray Load(QString name);
@@ -68,6 +74,8 @@ class MainWindow : public QMainWindow {
 
   QString path_;
   Clip *clip_;
+  libmv::Tracks* tracks_;
+  libmv::Reconstruction* reconstruction_;
   Scene *scene_;
   Tracker *tracker_;
   QVector<Zoom*> zooms_;

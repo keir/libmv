@@ -62,9 +62,9 @@ QDataStream& operator<<(QDataStream& s, const Object& v) {
   return s << v.transform << v.tracks;
 }
 
-Scene::Scene(QGLWidget *shareWidget) :
+Scene::Scene(libmv::Reconstruction *reconstruction, QGLWidget *shareWidget) :
   QGLWidget(QGLFormat(QGL::SampleBuffers),0,shareWidget),
-  reconstruction_(new libmv::Reconstruction()),
+  reconstruction_(reconstruction),
   grab_(0), pitch_(PI/2), yaw_(0), speed_(1), walk_(0), strafe_(0), jump_(0),
   current_image_(-1), active_object_(0) {
   setAutoFillBackground(false);
@@ -190,7 +190,7 @@ void Scene::DrawCamera(Camera camera, QVector<vec3>& lines) {
 
 void Scene::DrawObject(Object object, QVector<vec3>& quads) {
   vec3 min,max;
-  object.position(reconstruction_.data(),&min,&max);
+  object.position(reconstruction_,&min,&max);
   const int indices[6*4] = { 0,2,6,4,      1,3,7,5,     0,1,5,4,      2,3,7,6,     0,1,3,2,      4,5,7,6, };
   //const vec3 faces[6] = { vec3(-1,0,0), vec3(1,0,0), vec3(0,-1,0), vec3(0,1,0), vec3(0,0,-1), vec3(0,0,1) };
   for(int i=0;i<6*4;i++) {
@@ -377,7 +377,7 @@ void Scene::mouseReleaseEvent(QMouseEvent* e) {
     float minZ=16384; int i=0;
     foreach(Object object, objects_) {
       vec3 min,max;
-      object.position(reconstruction_.data(),&min,&max);
+      object.position(reconstruction_,&min,&max);
       float z=0;
       if( intersect(min,max,position_,d,z) && z < minZ ) {
         minZ = z;

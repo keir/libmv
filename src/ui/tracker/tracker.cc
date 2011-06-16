@@ -81,23 +81,10 @@ bool CopyRegionFromQImage(QImage image,
   return true;
 }
 
-// TODO(MatthiasF) shouldn't this be moved to RegionTracker API ?
-libmv::RegionTracker *CreateRegionTracker() {
-  libmv::TrkltRegionTracker *trklt_region_tracker = new libmv::TrkltRegionTracker;
-  trklt_region_tracker->half_window_size = 5;
-  trklt_region_tracker->max_iterations = 200;
-
-  libmv::PyramidRegionTracker *pyramid_region_tracker =
-      new libmv::PyramidRegionTracker(trklt_region_tracker, 3);
-  return new libmv::RetrackRegionTracker(pyramid_region_tracker, 0.2);
-}
-
-Tracker::Tracker(Scene *scene, QGLWidget *shareWidget)
-  : QGLWidget(QGLFormat(QGL::SampleBuffers),0,shareWidget),
-    tracks_(new libmv::Tracks()),
-    region_tracker_(CreateRegionTracker()),
-    scene_(scene),
-    current_image_(-1), active_track_(-1), dragged_(false) {}
+Tracker::Tracker(libmv::Tracks *tracks, Scene *scene, QGLWidget *shareWidget) :
+  QGLWidget(QGLFormat(QGL::SampleBuffers),0,shareWidget),
+  tracks_(tracks), scene_(scene),
+  current_image_(-1), active_track_(-1), dragged_(false) {}
 
 Tracker::~Tracker() {}
 
@@ -121,6 +108,13 @@ void Tracker::SetImage(int image, QImage new_image, bool track) {
 
   // Track active trackers from the previous image into this one.
   if (track) {
+    // FIXME: the scoped_ptr in Tracking API require the client to heap allocate
+    libmv::TrkltRegionTracker *trklt_region_tracker = new libmv::TrkltRegionTracker();
+    trklt_region_tracker->half_window_size = 5;
+    trklt_region_tracker->max_iterations = 200;
+    libmv::PyramidRegionTracker *pyramid_region_tracker =
+        new libmv::PyramidRegionTracker(trklt_region_tracker, 3);
+    libmv::RetrackRegionTracker region_tracker(pyramid_region_tracker, 0.2);
     vector<Marker> previous_markers = tracks_->MarkersInImage(previous_image);
     foreach (const Marker &marker, previous_markers) {
       if (!selected_tracks_.contains(marker.track)) {
@@ -156,9 +150,7 @@ void Tracker::SetImage(int image, QImage new_image, bool track) {
       double yy0 = marker.y - y0;
       double xx1 = marker.x - x1;
       double yy1 = marker.y - y1;
-      if (!region_tracker_->Track(old_patch, new_patch,
-                                 xx0, yy0,
-                                 &xx1, &yy1)) {
+      if (!region_tracker.Track(old_patch, new_patch, xx0, yy0, &xx1, &yy1)) {
         selected_tracks_.remove(selected_tracks_.indexOf(marker.track));
         continue;
       }

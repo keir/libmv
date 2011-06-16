@@ -35,7 +35,7 @@ class Scene;
 class Tracker : public QGLWidget {
   Q_OBJECT
  public:
-  Tracker(Scene *scene,QGLWidget *shareWidget = 0);
+  Tracker(libmv::Tracks* tracks, Scene *scene,QGLWidget *shareWidget = 0);
   ~Tracker();
   void Load(QByteArray data);
   QByteArray Save();
@@ -60,8 +60,7 @@ class Tracker : public QGLWidget {
  private:
   void DrawMarker(libmv::Marker marker, QVector<vec2>& lines);
 
-  QScopedPointer<libmv::Tracks> tracks_;
-  QScopedPointer<libmv::RegionTracker> region_tracker_;
+  libmv::Tracks* tracks_;
   QImage previous_image_;
   GLTexture image_;
   mat4 transform_;

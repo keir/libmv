@@ -23,6 +23,7 @@
 #include "ui/tracker/scene.h"
 
 #include "libmv/tools/tool.h"
+#include "libmv/simple_pipeline/multiview.h"
 
 #include <QApplication>
 #include <QFileDialog>
@@ -61,8 +62,10 @@ QImage Clip::Image(int frame) {
 
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
-    scene_(new Scene()),
-    tracker_(new Tracker(scene_,scene_)),
+    tracks_(new libmv::Tracks()),
+    reconstruction_(new libmv::Reconstruction()),
+    scene_(new Scene(reconstruction_)),
+    tracker_(new Tracker(tracks_,scene_,scene_)),
     current_frame_(-1) {
   setWindowTitle("Tracker");
   setCentralWidget(tracker_);
@@ -120,6 +123,8 @@ MainWindow::MainWindow()
   connect(tracker_action_, SIGNAL(triggered(bool)),
           track_action_, SLOT(setVisible(bool)));
 
+  toolbar->addAction(QIcon(":/solve"), "Solve reconstruction",
+                     this, SLOT(solve()));
   QAction* add_action = toolbar->addAction(QIcon(":/add"), "Add object",
                                            scene_, SLOT(add()));
   connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
@@ -365,6 +370,13 @@ void MainWindow::updateZooms(QVector<int> tracks) {
   for(int i=0; i<tracks.size(); i++) {
     zooms_[i]->SetMarker(current_frame_,tracks[i]);
   }
+}
+
+// TODO(MatthiasF): Implement this stub
+void MainWindow::solve() {
+  libmv::ReconstructTwoFrames(tracks_->AllMarkers(),reconstruction_);
+  libmv::Bundle(*tracks_,reconstruction_);
+  scene_->upload();
 }
 
 int main(int argc, char *argv[]) {
