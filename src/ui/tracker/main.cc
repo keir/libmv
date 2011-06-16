@@ -174,7 +174,15 @@ QByteArray MainWindow::Load(QString name) {
   QFile file(QDir(path_).filePath(name));
   return file.open(QFile::ReadOnly) ? file.readAll() : QByteArray();
 }
-#include <QDebug>
+
+struct Parameter {
+  const char* name;
+  const char* suffix;
+  double min;
+  double max;
+  double value;
+};
+
 void MainWindow::open() {
   open(QFileDialog::getExistingDirectory(this, "Select sequence folder"));
   if(clip_->isEmpty()) return;
@@ -182,43 +190,43 @@ void MainWindow::open() {
   QDialog dialog(this); dialog.setWindowTitle("Camera Parameters");
   QFormLayout layout( &dialog );
 
-  QDoubleSpinBox focal_length;
-  focal_length.setSuffix("px");
-  // TODO(MatthiasF): extract from EXIF data
-  focal_length.setRange(0,size.width());
-  focal_length.setValue(1);
-  layout.addRow("Focal Length", &focal_length );
+  const Parameter parameters[] = {
+    {"Focal Length",              "px", 0, size.width(),  1               },
+    {"Principal Point (X)",       "px", 0, size.width(),  size.width()/2  },
+    {"Principal Point (Y)",       "px", 0, size.height(), size.height()/2 },
+    {"Skew Factor",               "",   0, 1,             0               },
+    {"1st Radial Distortion",     "",   0, 1,             0               },
+    {"2nd Radial Distortion",     "",   0, 1,             0               },
+    {"3rd Radial Distortion",     "",   0, 1,             0               },
+    {"4th Radial Distortion",     "",   0, 1,             0               },
+    {"5th Radial Distortion",     "",   0, 1,             0               },
+    {"1st Tangential Distortion", "",   0, 1,             0               },
+    {"2nd Tangential Distortion", "",   0, 1,             0               },
+  };
+  const int count = sizeof(parameters)/sizeof(Parameter);
+  QDoubleSpinBox spinbox[count];
 
-  QDoubleSpinBox principal_point_x;
-  principal_point_x.setSuffix("px");
-  principal_point_x.setRange(0,size.width());
-  principal_point_x.setValue(size.width()/2);
-  layout.addRow("Principal Point (X)", &principal_point_x );
-
-  QDoubleSpinBox principal_point_y;
-  principal_point_y.setSuffix("px");
-  principal_point_y.setRange(0,size.height());
-  principal_point_y.setValue(size.height()/2);
-  layout.addRow("Principal Point (Y)", &principal_point_y );
-
-  QDoubleSpinBox skew_factor;
-  skew_factor.setRange(0,1);
-  layout.addRow("Skew Factor", &skew_factor );
-
-  static const char* order[] = { "1st", "2nd", "3rd", "4th", "5th" };
-  QDoubleSpinBox radial_distortion_coefficients[5];
-  for(int i=0; i<5; i++) {
-    layout.addRow(QString(order[i])+" Radial Distortion Coefficient",
-                  &radial_distortion_coefficients[i]);
+  QByteArray data = Load("settings");
+  data.reserve(count*sizeof(float));
+  float* values = (float*)data.data();
+  for(int i=0; i<count; i++) {
+    Parameter parameter = parameters[i];
+    spinbox[i].setSuffix(parameter.suffix);
+    spinbox[i].setRange(parameter.min,parameter.max);
+    if(data.isEmpty()) {
+      spinbox[i].setValue(parameter.value);
+    } else {
+      spinbox[i].setValue(values[i]);
+    }
+    layout.addRow(parameter.name,&spinbox[i]);
   }
-  QDoubleSpinBox tangential_distortion_coefficients[2];
-  for(int i=0; i<2; i++) {
-    layout.addRow(QString(order[i])+" Tangential Distortion Coefficient",
-                  &tangential_distortion_coefficients[i]);
-  }
-
   dialog.exec();
-  // TODO(MatthiasF): save and use the calibration data
+  data.resize(count*sizeof(float));
+  for(int i=0; i<count; i++) {
+    values[i]=spinbox[i].value();
+  }
+  Save("settings",data);
+  // TODO(MatthiasF): use the calibration data
 }
 
 void MainWindow::open(QString path) {
