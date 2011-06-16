@@ -21,11 +21,8 @@
 #ifndef UI_TRACKER_MAIN_H_
 #define UI_TRACKER_MAIN_H_
 
-#include <QApplication>
 #include <QMainWindow>
-#include <QToolBar>
 #include <QSpinBox>
-#include <QAction>
 #include <QSlider>
 #include <QCache>
 #include <QTimer>

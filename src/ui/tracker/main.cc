@@ -24,13 +24,14 @@
 
 #include "libmv/tools/tool.h"
 
-#include <QDesktopWidget>
-#include <QGraphicsPixmapItem>
-#include <QGraphicsView>
+#include <QApplication>
 #include <QFileDialog>
+#include <QFormLayout>
 #include <QDockWidget>
 #include <QToolButton>
 #include <QSettings>
+#include <QToolBar>
+#include <QAction>
 #include <QCache>
 #include <QMenu>
 #include <QTime>
@@ -64,7 +65,6 @@ MainWindow::MainWindow()
     tracker_(new Tracker(scene_,scene_)),
     current_frame_(-1) {
   setWindowTitle("Tracker");
-  setMaximumSize(qApp->desktop()->availableGeometry().size());
   setCentralWidget(tracker_);
   connect(tracker_, SIGNAL(trackChanged(QVector<int>)), this, SLOT(updateZooms(QVector<int>)));
 
@@ -174,9 +174,51 @@ QByteArray MainWindow::Load(QString name) {
   QFile file(QDir(path_).filePath(name));
   return file.open(QFile::ReadOnly) ? file.readAll() : QByteArray();
 }
-
+#include <QDebug>
 void MainWindow::open() {
   open(QFileDialog::getExistingDirectory(this, "Select sequence folder"));
+  if(clip_->isEmpty()) return;
+  QSize size = clip_->Image(0).size();
+  QDialog dialog(this); dialog.setWindowTitle("Camera Parameters");
+  QFormLayout layout( &dialog );
+
+  QDoubleSpinBox focal_length;
+  focal_length.setSuffix("px");
+  // TODO(MatthiasF): extract from EXIF data
+  focal_length.setRange(0,size.width());
+  focal_length.setValue(1);
+  layout.addRow("Focal Length", &focal_length );
+
+  QDoubleSpinBox principal_point_x;
+  principal_point_x.setSuffix("px");
+  principal_point_x.setRange(0,size.width());
+  principal_point_x.setValue(size.width()/2);
+  layout.addRow("Principal Point (X)", &principal_point_x );
+
+  QDoubleSpinBox principal_point_y;
+  principal_point_y.setSuffix("px");
+  principal_point_y.setRange(0,size.height());
+  principal_point_y.setValue(size.height()/2);
+  layout.addRow("Principal Point (Y)", &principal_point_y );
+
+  QDoubleSpinBox skew_factor;
+  skew_factor.setRange(0,1);
+  layout.addRow("Skew Factor", &skew_factor );
+
+  static const char* order[] = { "1st", "2nd", "3rd", "4th", "5th" };
+  QDoubleSpinBox radial_distortion_coefficients[5];
+  for(int i=0; i<5; i++) {
+    layout.addRow(QString(order[i])+" Radial Distortion Coefficient",
+                  &radial_distortion_coefficients[i]);
+  }
+  QDoubleSpinBox tangential_distortion_coefficients[2];
+  for(int i=0; i<2; i++) {
+    layout.addRow(QString(order[i])+" Tangential Distortion Coefficient",
+                  &tangential_distortion_coefficients[i]);
+  }
+
+  dialog.exec();
+  // TODO(MatthiasF): save and use the calibration data
 }
 
 void MainWindow::open(QString path) {
