@@ -30,10 +30,12 @@ class RegionTracker;
 class Marker;
 } // namespace libmv
 
+class Scene;
+
 class Tracker : public QGLWidget {
   Q_OBJECT
  public:
-  Tracker(QWidget *parent = 0,QGLWidget *shareWidget = 0);
+  Tracker(Scene *scene,QGLWidget *shareWidget = 0);
   ~Tracker();
   void Load(QByteArray data);
   QByteArray Save();
@@ -62,10 +64,9 @@ class Tracker : public QGLWidget {
   QScopedPointer<libmv::RegionTracker> region_tracker_;
   QImage previous_image_;
   GLTexture image_;
-
   mat4 transform_;
   GLBuffer markers_;
-
+  Scene* scene_;
   int current_image_;
   QVector<int> selected_tracks_;
   vec2 last_position_;

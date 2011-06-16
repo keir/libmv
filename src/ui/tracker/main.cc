@@ -60,8 +60,8 @@ QImage Clip::Image(int frame) {
 
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
-    tracker_(new Tracker()),
-    scene_(new Scene(0,tracker_)),
+    scene_(new Scene()),
+    tracker_(new Tracker(scene_,scene_)),
     current_frame_(-1) {
   setWindowTitle("Tracker");
   setMaximumSize(qApp->desktop()->availableGeometry().size());
@@ -89,9 +89,7 @@ MainWindow::MainWindow()
   scene_dock->toggleViewAction()->setIcon(QIcon(":/view-scene"));
   toolbar->addAction(scene_dock->toggleViewAction());
   connect(scene_, SIGNAL(imageChanged(int)), SLOT(seek(int)));
-  connect(scene_, SIGNAL(objectChanged()), SLOT(updateOverlay()));
   connect(scene_, SIGNAL(trackChanged(QVector<int>)), tracker_, SLOT(select(QVector<int>)));
-  scene_->hide();
 
   toolbar->addSeparator();
 
@@ -216,7 +214,6 @@ void MainWindow::seek(int frame) {
   spinbox_.setValue(current_frame_);
   tracker_->SetImage(current_frame_, clip_->Image(current_frame_),
                      track_action_->isChecked());
-  updateOverlay();
 }
 
 void MainWindow::stop() {
@@ -309,11 +306,6 @@ void MainWindow::updateZooms(QVector<int> tracks) {
   for(int i=0; i<tracks.size(); i++) {
     zooms_[i]->SetMarker(current_frame_,tracks[i]);
   }
-}
-
-void MainWindow::updateOverlay() {
-  if(!tracker_->isVisible()) return;
-  //scene_view_->renderCamera(tracker_->width(),tracker_->height(),current_frame_));
 }
 
 int main(int argc, char *argv[]) {

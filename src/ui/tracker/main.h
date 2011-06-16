@@ -63,9 +63,7 @@ class MainWindow : public QMainWindow {
   void toggleBackward(bool);
   void toggleForward(bool);
   void toggleZoom(bool);
-
   void updateZooms(QVector<int>);
-  void updateOverlay();
 
  private:
   QByteArray Load(QString name);
@@ -73,10 +71,10 @@ class MainWindow : public QMainWindow {
 
   QString path_;
   Clip *clip_;
+  Scene *scene_;
   Tracker *tracker_;
   QVector<Zoom*> zooms_;
   QVector<QDockWidget*> zooms_docks_;
-  Scene *scene_;
   int current_frame_;
   QAction *track_action_;
   QAction *backward_action_;

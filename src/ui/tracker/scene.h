@@ -40,7 +40,7 @@ struct Object {
 class Scene : public QGLWidget {
   Q_OBJECT
  public:
-  Scene(QWidget *parent = 0,QGLWidget *shareWidget = 0);
+  Scene(QGLWidget *shareWidget = 0);
   ~Scene();
   void LoadCameras(QByteArray data);
   void LoadBundles(QByteArray data);

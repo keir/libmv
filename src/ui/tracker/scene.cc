@@ -62,8 +62,8 @@ QDataStream& operator<<(QDataStream& s, const Object& v) {
   return s << v.transform << v.tracks;
 }
 
-Scene::Scene(QWidget *parent, QGLWidget *shareWidget) :
-  QGLWidget(QGLFormat(QGL::SampleBuffers),parent,shareWidget),
+Scene::Scene(QGLWidget *shareWidget) :
+  QGLWidget(QGLFormat(QGL::SampleBuffers),0,shareWidget),
   reconstruction_(new libmv::Reconstruction()),
   grab_(0), pitch_(PI/2), yaw_(0), speed_(1), walk_(0), strafe_(0), jump_(0),
   current_image_(-1), active_object_(0) {
@@ -284,7 +284,6 @@ void Scene::paintGL() {
 }
 
 void Scene::RenderOverlay(int w,int h,int image) {
-  glBindWindow(w,h);
   /// Compute camera projection
   // TODO(MatthiasF): match real image projection.
   Camera camera = *reconstruction_->CameraForImage(image);
@@ -304,11 +303,10 @@ void Scene::RenderOverlay(int w,int h,int image) {
   /// Render objects
   static GLShader object_shader;
   if(!object_shader.id) {
-    object_shader.compile(glsl("vertex object"),glsl("fragment object"));
+    object_shader.compile(glsl("vertex transform object"),glsl("fragment object"));
   }
   object_shader.bind();
-  object_shader["viewProjectionMatrix"] = projection*view;
-  object_shader.bind();
+  object_shader["transform"] = projection*view;
   cubes_.bind();
   cubes_.bindAttribute(&object_shader,"position",3);
   cubes_.draw();

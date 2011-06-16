@@ -18,8 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include "ui/tracker/tracker.h"
 #include "ui/tracker/gl.h"
+#include "ui/tracker/tracker.h"
+#include "ui/tracker/scene.h"
 
 #include "libmv/image/image.h"
 #include "libmv/simple_pipeline/tracks.h"
@@ -91,10 +92,11 @@ libmv::RegionTracker *CreateRegionTracker() {
   return new libmv::RetrackRegionTracker(pyramid_region_tracker, 0.2);
 }
 
-Tracker::Tracker(QWidget *parent, QGLWidget *shareWidget)
-  : QGLWidget(QGLFormat(QGL::SampleBuffers),parent,shareWidget),
+Tracker::Tracker(Scene *scene, QGLWidget *shareWidget)
+  : QGLWidget(QGLFormat(QGL::SampleBuffers),0,shareWidget),
     tracks_(new libmv::Tracks()),
     region_tracker_(CreateRegionTracker()),
+    scene_(scene),
     current_image_(-1), active_track_(-1), dragged_(false) {}
 
 Tracker::~Tracker() {}
@@ -250,6 +252,7 @@ void Tracker::Render(int w, int h, int image, int track) {
     if (W*h > H*w) { width=1; height=(float)(H*w)/(W*h); }
     else { height=1; width=(float)(W*h)/(H*w); }
     glQuad(vec4(-width,-height,0,1),vec4(width,height,1,0));
+    scene_->RenderOverlay(w,h,current_image_);
   }
 
   static GLShader marker_shader;
