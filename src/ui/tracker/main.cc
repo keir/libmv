@@ -47,7 +47,7 @@ void Clip::Open(QString path) {
   clear();
   foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
                                               QDir::Files, QDir::Name)) {
-    append( QDir(path).filePath(file) );
+    append(QDir(path).filePath(file));
   }
 }
 
@@ -65,7 +65,7 @@ MainWindow::MainWindow()
     tracks_(new libmv::Tracks()),
     reconstruction_(new libmv::Reconstruction()),
     scene_(new Scene(reconstruction_)),
-    tracker_(new Tracker(tracks_,scene_,scene_)),
+    tracker_(new Tracker(tracks_, scene_, scene_)),
     current_frame_(-1) {
   setWindowTitle("Tracker");
   setCentralWidget(tracker_);
@@ -78,15 +78,17 @@ MainWindow::MainWindow()
   toolbar->addAction(QIcon(":/open"), "Open a new sequence...",
                      this, SLOT(open()));
 
-  QAction* tracker_action_ = toolbar->addAction(QIcon(":/view-image"),"Tracker View");
+  QAction* tracker_action_ = toolbar->addAction(QIcon(":/view-image"),
+                                                "Tracker View");
   tracker_action_->setCheckable(true);
   tracker_action_->setChecked(true);
-  connect(tracker_action_,SIGNAL(triggered(bool)),tracker_,SLOT(setVisible(bool)));
+  connect(tracker_action_, SIGNAL(triggered(bool)),
+          tracker_, SLOT(setVisible(bool)));
 
-  zoom_action_ = toolbar->addAction(QIcon(":/view-zoom"),"Zoom View");
+  zoom_action_ = toolbar->addAction(QIcon(":/view-zoom"), "Zoom View");
   zoom_action_->setCheckable(true);
   zoom_action_->setChecked(true);
-  connect(zoom_action_,SIGNAL(triggered(bool)),this,SLOT(toggleZoom(bool)));
+  connect(zoom_action_, SIGNAL(triggered(bool)), this, SLOT(toggleZoom(bool)));
 
   QDockWidget* scene_dock = new QDockWidget("Scene View");
   scene_dock->setObjectName("sceneDock");
@@ -114,10 +116,11 @@ MainWindow::MainWindow()
   delete_button->setMenu(delete_popup);
   delete_button->setDefaultAction(delete_track);
   delete_button->setPopupMode(QToolButton::MenuButtonPopup);
-  connect(delete_popup,SIGNAL(triggered(QAction*)),
-          delete_button,SLOT(setDefaultAction(QAction*)));
+  connect(delete_popup, SIGNAL(triggered(QAction*)),
+          delete_button, SLOT(setDefaultAction(QAction*)));
 
-  track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
+  track_action_ = toolbar->addAction(QIcon(":/record"),
+                                     "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
   connect(tracker_action_, SIGNAL(triggered(bool)),
@@ -131,7 +134,7 @@ MainWindow::MainWindow()
           add_action, SLOT(setVisible(bool)));
 
   QAction* link_action = toolbar->addAction(
-        QIcon(":/link"),"Link active object to selected bundles",
+        QIcon(":/link"), "Link active object to selected bundles",
         scene_, SLOT(link()));
   connect(scene_dock->toggleViewAction(), SIGNAL(triggered(bool)),
           link_action, SLOT(setVisible(bool)));
@@ -140,12 +143,13 @@ MainWindow::MainWindow()
 
   toolbar->addAction(QIcon(":/skip-backward"), "Seek to first frame",
                      this, SLOT(first()));
-  toolbar->addAction(QIcon(":/step-backward"),"Step to previous frame",
+  toolbar->addAction(QIcon(":/step-backward"), "Step to previous frame",
                      this, SLOT(previous()))->setShortcut(QKeySequence("Left"));
   backward_action_ = toolbar->addAction(QIcon(":/play-backward"),
                                         "Play sequence backwards");
   backward_action_->setCheckable(true);
-  connect(backward_action_, SIGNAL(triggered(bool)), SLOT(toggleBackward(bool)));
+  connect(backward_action_, SIGNAL(triggered(bool)),
+          SLOT(toggleBackward(bool)));
   connect(&previous_timer_, SIGNAL(timeout()), SLOT(previous()));
 
   toolbar->addWidget(&spinbox_);
@@ -159,15 +163,15 @@ MainWindow::MainWindow()
   forward_action_->setCheckable(true);
   connect(forward_action_, SIGNAL(triggered(bool)), SLOT(toggleForward(bool)));
   connect(&next_timer_, SIGNAL(timeout()), SLOT(next()));
-  toolbar->addAction(QIcon(":/step-forward"), "Next Frame",this, SLOT(next()))
+  toolbar->addAction(QIcon(":/step-forward"), "Next Frame", this, SLOT(next()))
       ->setShortcut(QKeySequence("Right"));
-  toolbar->addAction(QIcon(":/skip-forward"), "Last Frame",this, SLOT(last()));
+  toolbar->addAction(QIcon(":/skip-forward"), "Last Frame", this, SLOT(last()));
 
   restoreGeometry(QSettings().value("geometry").toByteArray());
   restoreState(QSettings().value("windowState").toByteArray());
 }
-void MainWindow::Save(QString name,QByteArray data) {
-  if(data.isEmpty()) return;
+void MainWindow::Save(QString name, QByteArray data) {
+  if (data.isEmpty()) return;
   QFile file(QDir(path_).filePath(name));
   if (file.open(QFile::WriteOnly | QIODevice::Truncate)) {
     file.write(data);
@@ -176,11 +180,11 @@ void MainWindow::Save(QString name,QByteArray data) {
 MainWindow::~MainWindow() {
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
-  if(clip_->isEmpty()) return;
-  Save("tracks",tracker_->Save());
-  Save("cameras",scene_->SaveCameras());
-  Save("bundles",scene_->SaveBundles());
-  Save("objects",scene_->SaveObjects());
+  if (clip_->isEmpty()) return;
+  Save("tracks", tracker_->Save());
+  Save("cameras", scene_->SaveCameras());
+  Save("bundles", scene_->SaveBundles());
+  Save("objects", scene_->SaveObjects());
 }
 
 QByteArray MainWindow::Load(QString name) {
@@ -198,12 +202,14 @@ struct Parameter {
 
 void MainWindow::open() {
   open(QFileDialog::getExistingDirectory(this, "Select sequence folder"));
-  if(clip_->isEmpty()) return;
+  if (clip_->isEmpty()) return;
   QSize size = clip_->Image(0).size();
-  QDialog dialog(this); dialog.setWindowTitle("Camera Parameters");
-  QFormLayout layout( &dialog );
+  QDialog dialog(this);
+  dialog.setWindowTitle("Camera Parameters");
+  QFormLayout layout(&dialog);
 
-  const Parameter parameters[] = {
+  const int kCount = 11;
+  const Parameter parameters[kCount] = {
     {"Focal Length",              "px", 0, size.width(),  1               },
     {"Principal Point (X)",       "px", 0, size.width(),  size.width()/2  },
     {"Principal Point (Y)",       "px", 0, size.height(), size.height()/2 },
@@ -216,36 +222,34 @@ void MainWindow::open() {
     {"1st Tangential Distortion", "",   -1, 1,             0               },
     {"2nd Tangential Distortion", "",   -1, 1,             0               },
   };
-  const int count = sizeof(parameters)/sizeof(Parameter);
-  QDoubleSpinBox spinbox[count];
-
+  QDoubleSpinBox spinbox[kCount];
   QByteArray data = Load("settings");
-  data.reserve(count*sizeof(float));
-  float* values = (float*)data.data();
-  for(int i=0; i<count; i++) {
+  data.reserve(kCount*sizeof(Parameter::value));
+  float* values = reinterpret_cast<float*>(data.data());
+  for (int i = 0; i < kCount; i++) {
     Parameter parameter = parameters[i];
     spinbox[i].setSuffix(parameter.suffix);
-    spinbox[i].setRange(parameter.min,parameter.max);
-    if(data.isEmpty()) {
+    spinbox[i].setRange(parameter.min, parameter.max);
+    if (data.isEmpty()) {
       spinbox[i].setValue(parameter.value);
     } else {
       spinbox[i].setValue(values[i]);
     }
-    layout.addRow(parameter.name,&spinbox[i]);
+    layout.addRow(parameter.name, &spinbox[i]);
   }
   dialog.exec();
-  data.resize(count*sizeof(float));
-  for(int i=0; i<count; i++) {
-    values[i]=spinbox[i].value();
+  data.resize(kCount*sizeof(Parameter::value));
+  for (int i = 0; i < kCount; i++) {
+    values[i] = spinbox[i].value();
   }
-  Save("settings",data);
+  Save("settings", data);
   scene_->LoadCalibration(data);
 }
 
 void MainWindow::open(QString path) {
   if (path.isEmpty() || !QDir(path).exists()) return;
   clip_->Open(path);
-  if(clip_->isEmpty()) return;
+  if (clip_->isEmpty()) return;
   path_ = path;
   setWindowTitle(QString("Tracker - %1").arg(QDir(path).dirName()));
   tracker_->Load(Load("tracks"));
@@ -335,47 +339,48 @@ void MainWindow::toggleForward(bool play) {
 
 void MainWindow::toggleZoom(bool zoom) {
   if (zoom) {
-    foreach(QDockWidget* dock, zooms_docks_) {
+    foreach (QDockWidget* dock, zooms_docks_) {
       dock->show();
     }
   } else {
-    foreach(QDockWidget* dock, zooms_docks_) {
+    foreach (QDockWidget* dock, zooms_docks_) {
       dock->hide();
     }
   }
 }
 
 void MainWindow::updateZooms(QVector<int> tracks) {
-  if(!zoom_action_->isChecked()) return;
-  if(!zooms_docks_.isEmpty() && tracks.size()*zooms_docks_.first()->width() > width()) {
+  if (!zoom_action_->isChecked()) return;
+  if (!zooms_docks_.isEmpty() &&
+      tracks.size()*zooms_docks_.first()->width() > width()) {
     tracks.resize(width() / zooms_docks_.first()->width());
   }
-  for(int i=tracks.size(); i<zooms_docks_.size(); i++) {
+  for (int i = tracks.size(); i < zooms_docks_.size(); i++) {
     removeDockWidget(zooms_docks_[i]);
     delete zooms_docks_[i];
-    //zoom widget is owned by dock ?
+    // zoom widget is owned by dock ?
   }
-  for(int i=zooms_docks_.size(); i<tracks.size(); i++) {
+  for (int i = zooms_docks_.size(); i < tracks.size(); i++) {
     QDockWidget* dock = new QDockWidget(QString("Zoom View #%1").arg(tracks[i]));
     dock->setObjectName(QString("zoom%1").arg(tracks[i]));
     addDockWidget(Qt::TopDockWidgetArea, dock);
-    Zoom* zoom = new Zoom(0,tracker_);
+    Zoom* zoom = new Zoom(0, tracker_);
     dock->setWidget(zoom);
-    addDockWidget(Qt::TopDockWidgetArea,dock);
+    addDockWidget(Qt::TopDockWidgetArea, dock);
     zooms_ << zoom;
     zooms_docks_ << dock;
   }
   zooms_docks_.resize(tracks.size());
   zooms_.resize(tracks.size());
-  for(int i=0; i<tracks.size(); i++) {
-    zooms_[i]->SetMarker(current_frame_,tracks[i]);
+  for (int i = 0; i < tracks.size(); i++) {
+    zooms_[i]->SetMarker(current_frame_, tracks[i]);
   }
 }
 
 // TODO(MatthiasF): Implement this stub
 void MainWindow::solve() {
-  libmv::ReconstructTwoFrames(tracks_->AllMarkers(),reconstruction_);
-  libmv::Bundle(*tracks_,reconstruction_);
+  libmv::ReconstructTwoFrames(tracks_->AllMarkers(), reconstruction_);
+  libmv::Bundle(*tracks_, reconstruction_);
   scene_->upload();
 }
 

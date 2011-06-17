@@ -30,7 +30,7 @@
 namespace libmv {
 class Tracks;
 class Reconstruction;
-} // namespace libmv
+}  // namespace libmv
 
 class Tracker;
 class Zoom;
@@ -39,7 +39,7 @@ class Scene;
 class Clip : public QObject, public QList<QString>   {
   Q_OBJECT
  public:
-  Clip(QObject* parent=0) : QObject(parent) {}
+  explicit Clip(QObject* parent = 0) : QObject(parent) {}
   void Open(QString path);
   QImage Image(int frame);
  private:
@@ -70,7 +70,7 @@ class MainWindow : public QMainWindow {
 
  private:
   QByteArray Load(QString name);
-  void Save(QString name,QByteArray data);
+  void Save(QString name, QByteArray data);
 
   QString path_;
   Clip *clip_;

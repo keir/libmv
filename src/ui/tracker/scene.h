@@ -29,12 +29,13 @@ namespace libmv {
 class Point;
 class Camera;
 class Reconstruction;
-} // namespace libmv
+}  // namespace libmv
 
 struct Object {
   mat4 transform;
   QVector<int> tracks;
-  void position(libmv::Reconstruction* reconstruction, vec3* min, vec3* max);
+  void position(libmv::Reconstruction* reconstruction,
+                vec3* min, vec3* max) const;
 };
 
 struct Calibration {
@@ -57,9 +58,9 @@ class Scene : public QGLWidget {
   QByteArray SaveCameras();
   QByteArray SaveBundles();
   QByteArray SaveObjects();
-  void SetImage(int);
-  void Render(int w,int h,int image);
-  
+  void SetImage(int image);
+  void Render(int w, int h, int image);
+
  public slots:
   void select(QVector<int>);
   void add();
@@ -81,9 +82,9 @@ class Scene : public QGLWidget {
   void timerEvent(QTimerEvent*);
 
  private:
-  void DrawPoint(libmv::Point point, QVector<vec3>& points);
-  void DrawCamera(libmv::Camera camera, QVector<vec3>& lines);
-  void DrawObject(Object object, QVector<vec3>& quads);
+  void DrawPoint(const libmv::Point& point, QVector<vec3> *points);
+  void DrawCamera(const libmv::Camera& camera, QVector<vec3> *lines);
+  void DrawObject(const Object& object, QVector<vec3> *quads);
 
   libmv::Reconstruction* reconstruction_;
   Calibration calibration_;
@@ -93,8 +94,8 @@ class Scene : public QGLWidget {
   GLBuffer cubes_;
   QPoint drag_;
   bool grab_;
-  float pitch_,yaw_,speed_;
-  int walk_,strafe_,jump_;
+  float pitch_, yaw_, speed_;
+  int walk_, strafe_, jump_;
   vec3 position_;
   vec3 velocity_;
   vec3 momentum_;

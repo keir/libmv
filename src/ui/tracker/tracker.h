@@ -28,14 +28,14 @@ namespace libmv {
 class Tracks;
 class RegionTracker;
 class Marker;
-} // namespace libmv
+}  // namespace libmv
 
 class Scene;
 
 class Tracker : public QGLWidget {
   Q_OBJECT
  public:
-  Tracker(libmv::Tracks* tracks, Scene *scene,QGLWidget *shareWidget = 0);
+  Tracker(libmv::Tracks* tracks, Scene *scene, QGLWidget *shareWidget = 0);
   ~Tracker();
   void Load(QByteArray data);
   QByteArray Save();
@@ -49,16 +49,16 @@ class Tracker : public QGLWidget {
   void upload();
 
  signals:
-  void trackChanged(QVector<int>);
+  void trackChanged(QVector<int> tracks);
 
  protected:
   void paintGL();
-  void mousePressEvent(QMouseEvent*);
-  void mouseMoveEvent(QMouseEvent*);
-  void mouseReleaseEvent(QMouseEvent *);
+  void mousePressEvent(QMouseEvent *event);
+  void mouseMoveEvent(QMouseEvent *event);
+  void mouseReleaseEvent(QMouseEvent *event);
 
  private:
-  void DrawMarker(libmv::Marker marker, QVector<vec2>& lines);
+  void DrawMarker(const libmv::Marker marker, QVector<vec2> *lines);
 
   libmv::Tracks* tracks_;
   QImage previous_image_;
@@ -76,7 +76,7 @@ class Tracker : public QGLWidget {
 class Zoom : public QGLWidget {
   Q_OBJECT
  public:
-  Zoom(QWidget *parent = 0,Tracker *tracker = 0);
+  Zoom(QWidget *parent = 0, Tracker *tracker = 0);
   void SetMarker(int image, int track);
 
  protected:
