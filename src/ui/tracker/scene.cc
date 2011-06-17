@@ -30,6 +30,13 @@ using libmv::Camera;
 using libmv::Point;
 using libmv::Vec3;
 using libmv::Mat3;
+using libmv::Mat34;
+
+static void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
+  P->block<3, 3>(0, 0) = R;
+  P->col(3) = t;
+  (*P) = K * (*P);
+}
 
 /// TODO(MatthiasF): keep this define as long we don't have reconstruction.
 #define RANDOM
@@ -117,6 +124,10 @@ void Scene::LoadBundles(QByteArray data) {
 void Scene::LoadObjects(QByteArray data) {
   QDataStream stream(data);
   stream >> objects_;
+}
+
+void Scene::LoadCalibration(QByteArray data) {
+  calibration_ = *(Calibration*)data.constData();
 }
 
 QByteArray Scene::SaveCameras() {
@@ -247,15 +258,18 @@ void Scene::Render(int w,int h,int image) {
   if(image >=0) {
     // TODO(MatthiasF): match real image projection.
     Camera camera = *reconstruction_->CameraForImage(image);
-    mat4 projection; projection.perspective(PI/4, (float)w/h, 1, 16384);
-    mat4 rotation;
-    // FIXME: this is probably wrong, need to inverse the rotation.
-    for(int i = 0 ; i < 3 ; i++) for(int j = 0 ; j < 3 ; j++) {
-      rotation(i,j)=camera.R(i,j);
+    Mat3 K;
+    K << calibration_.focal_length, 0, (w-1)/2,
+         0, calibration_.focal_length, (h-1)/2,
+         0, 0,                         1;
+    Mat34 P;
+    P_From_KRt(K, camera.R, camera.t, &P);
+    for(int j = 0 ; j < 4 ; j++) {
+      transform(0,j) = P(0,j);
+      transform(1,j) = P(1,j);
+      transform(2,j) = 0;
+      transform(3,j) = P(2,j);
     }
-    mat4 translation;
-    translation.translate(-vec3(camera.t.x(), camera.t.y(), camera.t.z()));
-    transform = projection * rotation * translation;
   } else {
     projection_=mat4(); projection_.perspective(PI/4, (float)w/h, 1, 16384);
     view_=mat4(); view_.rotateX(-pitch_); view_.rotateZ(-yaw_); view_.translate(-position_);
@@ -265,10 +279,12 @@ void Scene::Render(int w,int h,int image) {
   /// Display bundles
   static GLShader bundle_shader;
   if(!bundle_shader.id) {
-    bundle_shader.compile(glsl("vertex transform bundle"),glsl("fragment bundle"));
+    bundle_shader.compile(glsl("vertex transform distort bundle"),glsl("fragment bundle"));
   }
   bundle_shader.bind();
   bundle_shader["transform"] = transform;
+  bundle_shader["center"] = vec2(0,0);
+  bundle_shader["K1"] = calibration_.radial_distortion[0];
   bundles_.bind();
   bundles_.bindAttribute(&bundle_shader,"position",3);
   glAdditiveBlendMode();

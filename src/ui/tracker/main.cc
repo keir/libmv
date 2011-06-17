@@ -207,14 +207,14 @@ void MainWindow::open() {
     {"Focal Length",              "px", 0, size.width(),  1               },
     {"Principal Point (X)",       "px", 0, size.width(),  size.width()/2  },
     {"Principal Point (Y)",       "px", 0, size.height(), size.height()/2 },
-    {"Skew Factor",               "",   0, 1,             0               },
-    {"1st Radial Distortion",     "",   0, 1,             0               },
-    {"2nd Radial Distortion",     "",   0, 1,             0               },
-    {"3rd Radial Distortion",     "",   0, 1,             0               },
-    {"4th Radial Distortion",     "",   0, 1,             0               },
-    {"5th Radial Distortion",     "",   0, 1,             0               },
-    {"1st Tangential Distortion", "",   0, 1,             0               },
-    {"2nd Tangential Distortion", "",   0, 1,             0               },
+    {"Skew Factor",               "",   -1, 1,             0               },
+    {"1st Radial Distortion",     "",   -1, 1,             0               },
+    {"2nd Radial Distortion",     "",   -1, 1,             0               },
+    {"3rd Radial Distortion",     "",   -1, 1,             0               },
+    {"4th Radial Distortion",     "",   -1, 1,             0               },
+    {"5th Radial Distortion",     "",   -1, 1,             0               },
+    {"1st Tangential Distortion", "",   -1, 1,             0               },
+    {"2nd Tangential Distortion", "",   -1, 1,             0               },
   };
   const int count = sizeof(parameters)/sizeof(Parameter);
   QDoubleSpinBox spinbox[count];
@@ -239,7 +239,7 @@ void MainWindow::open() {
     values[i]=spinbox[i].value();
   }
   Save("settings",data);
-  // TODO(MatthiasF): use the calibration data
+  scene_->LoadCalibration(data);
 }
 
 void MainWindow::open(QString path) {

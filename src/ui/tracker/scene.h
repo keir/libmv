@@ -37,6 +37,14 @@ struct Object {
   void position(libmv::Reconstruction* reconstruction, vec3* min, vec3* max);
 };
 
+struct Calibration {
+  float focal_length;
+  float principal_point[2];
+  float skew_factor;
+  float radial_distortion[5];
+  float tangential_distortion[2];
+};
+
 class Scene : public QGLWidget {
   Q_OBJECT
  public:
@@ -45,6 +53,7 @@ class Scene : public QGLWidget {
   void LoadCameras(QByteArray data);
   void LoadBundles(QByteArray data);
   void LoadObjects(QByteArray data);
+  void LoadCalibration(QByteArray data);
   QByteArray SaveCameras();
   QByteArray SaveBundles();
   QByteArray SaveObjects();
@@ -77,6 +86,7 @@ class Scene : public QGLWidget {
   void DrawObject(Object object, QVector<vec3>& quads);
 
   libmv::Reconstruction* reconstruction_;
+  Calibration calibration_;
   QVector<Object> objects_;
   GLBuffer bundles_;
   GLBuffer cameras_;

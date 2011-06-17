@@ -33,6 +33,7 @@ class QImage;
 struct vec2 {
   float x,y;
   inline vec2(float x=0, float y=0):x(x),y(y){}
+  inline vec2(float v[2]) : x(v[0]), y(v[1]) {}
 #ifdef QSTRING_H
   inline QString toString() const { return QString("%1 %2").arg(x,0,'f',2).arg(y,0,'f',2); }
 #endif
