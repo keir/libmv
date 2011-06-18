@@ -37,6 +37,8 @@
 #include <QMenu>
 #include <QTime>
 
+#include <float.h>
+
 void Clip::Open(QString path) {
   cache_.setMaxCost(64 * 1024 * 1024);
   if (path.endsWith(".avi")) {
@@ -210,9 +212,9 @@ void MainWindow::open() {
 
   const int kCount = 11;
   const Parameter parameters[kCount] = {
-    {"Focal Length",              "px", 0, size.width(),  1               },
-    {"Principal Point (X)",       "px", 0, size.width(),  size.width()/2  },
-    {"Principal Point (Y)",       "px", 0, size.height(), size.height()/2 },
+    {"Focal Length",              "px", 0,  FLT_MAX,       1               },
+    {"Principal Point (X)",       "px", 0,  size.width(),  size.width()/2  },
+    {"Principal Point (Y)",       "px", 0,  size.height(), size.height()/2 },
     {"Skew Factor",               "",   -1, 1,             0               },
     {"1st Radial Distortion",     "",   -1, 1,             0               },
     {"2nd Radial Distortion",     "",   -1, 1,             0               },
