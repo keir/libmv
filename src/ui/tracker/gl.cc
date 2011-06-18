@@ -177,7 +177,7 @@ void GLBuffer::bindAttribute(GLShader* program, const char* name,
   int location = program->attribLocation(name);
   if (location < 0) qWarning() << "unused attrib" << name;
   glVertexAttribPointer(location, elementSize, GL_FLOAT, 0, vertexSize,
-                        reinterpret_cast<void*>offset);
+                        reinterpret_cast<void*>(offset));
   glEnableVertexAttribArray(location);
 }
 

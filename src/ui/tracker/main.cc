@@ -224,7 +224,7 @@ void MainWindow::open() {
   };
   QDoubleSpinBox spinbox[kCount];
   QByteArray data = Load("settings");
-  data.reserve(kCount*sizeof(Parameter::value));
+  data.reserve(kCount*sizeof(float));
   float* values = reinterpret_cast<float*>(data.data());
   for (int i = 0; i < kCount; i++) {
     Parameter parameter = parameters[i];
@@ -238,7 +238,7 @@ void MainWindow::open() {
     layout.addRow(parameter.name, &spinbox[i]);
   }
   dialog.exec();
-  data.resize(kCount*sizeof(Parameter::value));
+  data.resize(kCount*sizeof(float));
   for (int i = 0; i < kCount; i++) {
     values[i] = spinbox[i].value();
   }
