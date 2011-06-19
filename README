@@ -9,12 +9,12 @@ It is not ready yet. If you're interested in contributing, see:
 
 The short story:
 
+ $ git pull git://github.com/Matthias-Fauconneau/libmv.git
  $ make
- $ bin-dbg/ui/tvr/tvr
+ $ bin-opt/bin/qt-tracker
 
-Try loading two images and making a reconstruction. This UI will almost
-certainly crash on you and may delete your harddrive. There's a reason we claim
-libmv is not finished!
+Try loading an image sequence and start tracking. This UI may crash on you.
+There's a reason we claim libmv is not finished !
 
 Building
 --------
@@ -28,41 +28,7 @@ Then run
 
  $ make
 
-in the toplevel directory. This builds a debug version, and puts it in bin-dbg.
-To build an optimized version, do
-
- $ make release
-
-which puts optimized executables and libraries in bin-dbg/. To run the test
-suite, cd in to the appriate directory and run 'make test'
-
- $ cd bin-dbg
- $ make test
-
-Building uses CMake, so it is possible to build in other directories with
-different CMake flags. However, building inside the toplevel directory with
-CMake will fail; in other words DON'T DO THIS:
-
- $ ls
- AUTHORS  contrib  doc  LICENSE  Makefile  README  src
- $ cmake .
- $ make  <-- Will fail.
-
-Instead do this:
-
- $ ls
- AUTHORS  contrib  doc  LICENSE  Makefile  README  src
- $ mkdir build
- $ cd build
- $ cmake ../src # Your options here
- $ make
- $ make test
- $ ...
-
 Problems
 --------
 
-If you encounter problems running the test suite, please mail the mailing list
-or file a ticket on our Google code project page
-
-  http://code.google.com/p/libmv/issues
+If you encounter problems, please mail the branch author or ask for help on irc://irc.freenode.net/libmv
