@@ -129,7 +129,7 @@ ELSE (QT4_FOUND)
   MESSAGE(STATUS "If you have installed Qt4, check that qmake.exe is accessible from your PATH.")
 ENDIF (QT4_FOUND)
 
-OPTION(BUILD_TOOLS "Build the command line tools." ON)
+OPTION(BUILD_TOOLS "Build the command line tools." OFF)
 IF (BUILD_TOOLS)
   ADD_SUBDIRECTORY(tools)
 ENDIF (BUILD_TOOLS)
