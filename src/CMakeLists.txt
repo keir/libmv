@@ -106,7 +106,7 @@ INCLUDE(Installation)
 INCLUDE(Testing)
 
 ADD_SUBDIRECTORY(libmv)
-#ADD_SUBDIRECTORY(third_party)
+ADD_SUBDIRECTORY(third_party)
 
 IF (BUILD_TESTS)
   ADD_SUBDIRECTORY(testing)
