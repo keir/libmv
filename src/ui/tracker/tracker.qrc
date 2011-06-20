@@ -8,6 +8,7 @@
         <file alias="record">icons/media-record.png</file>
         <file alias="delete">icons/edit-delete.png</file>
         <file alias="delete-row">icons/edit-table-delete-row.png</file>
+        <file alias="keyframe">icons/bookmarks.png</file>
         <file alias="solve">icons/system-run.png</file>
         <file alias="link">icons/insert-link.png</file>
         <file alias="add">icons/list-add.png</file>

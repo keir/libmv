@@ -24,6 +24,7 @@
 #include <QMainWindow>
 #include <QSpinBox>
 #include <QSlider>
+#include <QLabel>
 #include <QCache>
 #include <QTimer>
 
@@ -62,6 +63,7 @@ class MainWindow : public QMainWindow {
   void next();
   void last();
   void toggleTracking(bool);
+  void toggleKeyframe(bool);
   void toggleBackward(bool);
   void toggleForward(bool);
   void toggleZoom(bool);
@@ -75,18 +77,23 @@ class MainWindow : public QMainWindow {
   QString path_;
   Clip *clip_;
   libmv::Tracks* tracks_;
+  QVector<int> keyframes_;
   libmv::Reconstruction* reconstruction_;
+
   Scene *scene_;
   Tracker *tracker_;
   QVector<Zoom*> zooms_;
   QVector<QDockWidget*> zooms_docks_;
+
   int current_frame_;
   QAction *zoom_action_;
   QAction *track_action_;
+  QAction *keyframe_action_;
   QAction *backward_action_;
   QAction *forward_action_;
   QSpinBox spinbox_;
   QSlider slider_;
+  QLabel keyframe_label_;
   QTimer previous_timer_;
   QTimer next_timer_;
 };

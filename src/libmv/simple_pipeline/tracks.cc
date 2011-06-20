@@ -77,9 +77,9 @@ vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) cons
   for (int i = 0; i < markers_.size(); ++i) {
     int image = markers_[i].image;
     if (image == image1) {
-      image1_tracks.push_back(image);
+      image1_tracks.push_back(markers_[i].track);
     } else if (image == image2) {
-      image2_tracks.push_back(image);
+      image2_tracks.push_back(markers_[i].track);
     }
   }
 
@@ -93,9 +93,9 @@ vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) cons
 
   vector<Marker> markers;
   for (int i = 0; i < markers_.size(); ++i) {
-    if (std::binary_search(intersection.begin(),
-                           intersection.end(),
-                           markers_[i].image)) {
+    if ((markers_[i].image == image1 || markers_[i].image == image2) &&
+        std::binary_search(intersection.begin(),intersection.end(),
+                           markers_[i].track)) {
       markers.push_back(markers_[i]);
     }
   }

@@ -22,8 +22,8 @@
 #include "ui/tracker/tracker.h"
 #include "ui/tracker/scene.h"
 
-#include "libmv/tools/tool.h"
 #include "libmv/simple_pipeline/multiview.h"
+#include "libmv/simple_pipeline/pipeline.h"
 
 #include <QApplication>
 #include <QFileDialog>
@@ -40,13 +40,8 @@
 #include <float.h>
 
 void Clip::Open(QString path) {
-  cache_.setMaxCost(64 * 1024 * 1024);
-  if (path.endsWith(".avi")) {
-    // TODO(MatthiasF): load videos using ffmpeg
-    return;
-  }
-
   clear();
+  cache_.setMaxCost(64 * 1024 * 1024);
   foreach (QString file, QDir(path).entryList(QStringList("*.jpg") << "*.png",
                                               QDir::Files, QDir::Name)) {
     append(QDir(path).filePath(file));
@@ -121,12 +116,17 @@ MainWindow::MainWindow()
   connect(delete_popup, SIGNAL(triggered(QAction*)),
           delete_button, SLOT(setDefaultAction(QAction*)));
 
-  track_action_ = toolbar->addAction(QIcon(":/record"),
-                                     "Track selected markers");
+  track_action_ = toolbar->addAction(QIcon(":/record"), "Track selected markers");
   track_action_->setCheckable(true);
   connect(track_action_, SIGNAL(triggered(bool)), SLOT(toggleTracking(bool)));
   connect(tracker_action_, SIGNAL(triggered(bool)),
           track_action_, SLOT(setVisible(bool)));
+
+  keyframe_action_ = toolbar->addAction(QIcon(":/keyframe"), "Add Keyframe");
+  keyframe_action_->setCheckable(true);
+  connect(keyframe_action_, SIGNAL(triggered(bool)), SLOT(toggleKeyframe(bool)));
+  connect(tracker_action_, SIGNAL(triggered(bool)),
+          keyframe_action_, SLOT(setVisible(bool)));
 
   toolbar->addAction(QIcon(":/solve"), "Solve reconstruction",
                      this, SLOT(solve()));
@@ -169,6 +169,11 @@ MainWindow::MainWindow()
       ->setShortcut(QKeySequence("Right"));
   toolbar->addAction(QIcon(":/skip-forward"), "Last Frame", this, SLOT(last()));
 
+  toolbar->addWidget(&keyframe_label_);
+  keyframe_label_.setToolTip("Shows number of frame (since previous|until next) "
+                             "keyframe and common tracks between current frame "
+                             "and (previous|next) keyframe in parenthesis");
+
   restoreGeometry(QSettings().value("geometry").toByteArray());
   restoreState(QSettings().value("windowState").toByteArray());
 }
@@ -187,6 +192,9 @@ MainWindow::~MainWindow() {
   Save("cameras", scene_->SaveCameras());
   Save("bundles", scene_->SaveBundles());
   Save("objects", scene_->SaveObjects());
+  Save("keyframes", QByteArray((char*)keyframes_.data(),keyframes_.size()*sizeof(int)));
+  delete reconstruction_;
+  delete tracks_;
 }
 
 QByteArray MainWindow::Load(QString name) {
@@ -258,6 +266,11 @@ void MainWindow::open(QString path) {
   scene_->LoadCameras(Load("cameras"));
   scene_->LoadBundles(Load("bundles"));
   scene_->LoadObjects(Load("objects"));
+  QByteArray data = Load("keyframes");
+  const int *keyframes = reinterpret_cast<const int*>(data.constData());
+  for (size_t i = 0; i < data.size() / sizeof(int); ++i) {
+    keyframes_ << keyframes[i];
+  }
   scene_->upload();
   spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
@@ -283,6 +296,29 @@ void MainWindow::seek(int frame) {
   spinbox_.setValue(current_frame_);
   tracker_->SetImage(current_frame_, clip_->Image(current_frame_),
                      track_action_->isChecked());
+  if (keyframes_.contains(current_frame_)) {
+    keyframe_action_->setChecked(true);
+  } else {
+    keyframe_action_->setChecked(false);
+    int i = 0;
+    for(; i < keyframes_.count(); i++) {
+      if(keyframes_[i] >= current_frame_) break;
+    }
+    QString text;
+    if(i>0) {
+      int previous = keyframes_[i-1];
+      int common =
+          tracks_->MarkersForTracksInBothImages(current_frame_,previous).size()/2;
+      text += QString("%1 (%2) |").arg(current_frame_-previous).arg(common);
+    }
+    if(i<keyframes_.count()) {
+      int next = keyframes_[i];
+      int common =
+          tracks_->MarkersForTracksInBothImages(current_frame_,next).size()/2;
+      text += QString("| %1 (%2)").arg(next-current_frame_).arg(common);
+    }
+    keyframe_label_.setText(text);
+  }
 }
 
 void MainWindow::stop() {
@@ -316,6 +352,40 @@ void MainWindow::toggleTracking(bool track) {
   } else {
     backward_action_->setText("Play sequence backwards");
     forward_action_->setText("Play sequence forwards");
+  }
+}
+
+void MainWindow::toggleKeyframe(bool keyframe) {
+  stop();
+  if (keyframe) {
+    int i = 0;
+    for(; i < keyframes_.count(); i++) {
+      if(keyframes_[i] >= current_frame_) {
+        Q_ASSERT(keyframes_[i] != current_frame_);
+        break;
+      }
+    }
+    keyframes_.insert(i, current_frame_);
+    if(keyframes_.count()==2) {
+      libmv::ReconstructTwoFrames(
+            tracks_->MarkersForTracksInBothImages(keyframes_[0],keyframes_[1]),
+            reconstruction_);
+      scene_->upload();
+    } else {
+      // TODO(MatthiasF): do we need to resect and intersect again subsequent frames ?
+      libmv::Resect(
+            tracks_->MarkersForTracksInBothImages(keyframes_[i-1],current_frame_),
+            reconstruction_);
+      libmv::Intersect(
+            tracks_->MarkersForTracksInBothImages(keyframes_[i-1],current_frame_),
+            reconstruction_);
+      libmv::Bundle(*tracks_,reconstruction_);
+      scene_->upload();
+    }
+  } else {
+    if (keyframes_.contains(current_frame_)) {
+      keyframes_.remove(keyframes_.indexOf(current_frame_));
+    }
   }
 }
 
@@ -379,10 +449,8 @@ void MainWindow::updateZooms(QVector<int> tracks) {
   }
 }
 
-// TODO(MatthiasF): Implement this stub
 void MainWindow::solve() {
-  libmv::ReconstructTwoFrames(tracks_->AllMarkers(), reconstruction_);
-  libmv::Bundle(*tracks_, reconstruction_);
+  libmv::CompleteReconstruction(*tracks_,reconstruction_);
   scene_->upload();
 }
 

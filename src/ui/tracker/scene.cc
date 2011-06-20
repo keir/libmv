@@ -212,18 +212,11 @@ void Scene::DrawObject(const Object& object, QVector<vec3> *quads) {
                              2, 3, 7, 6,
                              0, 1, 3, 2,
                              4, 5, 7, 6, };
-  /*const vec3 faces[6] = { vec3(-1, 0, 0),
-                          vec3(1, 0, 0),
-                          vec3(0, -1, 0),
-                          vec3(0, 1, 0),
-                          vec3(0, 0, -1),
-                          vec3(0, 0, 1) };*/
   for (int i = 0; i < 6*4; i++) {
     int m = indices[i];
     *quads << vec3(m&1?min.x:max.x,   // NOLINT(runtime/references)
                    m&2?min.y:max.y,   // NOLINT(runtime/references)
                    m&4?min.z:max.z);  // NOLINT(runtime/references)
-    // quads << faces[i/4]; // no need for normals without any lights
   }
 }
 
