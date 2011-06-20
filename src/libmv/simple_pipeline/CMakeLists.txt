@@ -9,7 +9,7 @@ FILE(GLOB SIMPLE_PIPELINE_HDRS *.h)
 
 ADD_LIBRARY(simple_pipeline ${SIMPLE_PIPELINE_SRC} ${SIMPLE_PIPELINE_HDRS})
 
-TARGET_LINK_LIBRARIES(simple_pipeline multiview glog)
+TARGET_LINK_LIBRARIES(simple_pipeline multiview)
 
 # Make the name of debug libraries end in _d.
 SET_TARGET_PROPERTIES(simple_pipeline PROPERTIES DEBUG_POSTFIX "_d")

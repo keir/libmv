@@ -387,7 +387,6 @@ void MainWindow::solve() {
 }
 
 int main(int argc, char *argv[]) {
-  libmv::Init("", &argc, &argv);
   QApplication app(argc, argv);
   app.setOrganizationName("libmv");
   app.setApplicationName("tracker");

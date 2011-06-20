@@ -75,7 +75,7 @@ bool Intersect(const std::vector<Marker> &markers,
 /*!
     Optimize the camera pose estimation and scene 3D coordinates using bundle adjustment.
 
-    \a \l Tracks structure containing all markers used in the reconstruction.
+    \a tracks should contain all markers used in the reconstruction.
     \a reconstruction should contain the cameras for all processed keyframes.
     \a reconstruction should contain the points for all processed keyframes.
        The cameras and the points will be refined in place in \a reconstruction.

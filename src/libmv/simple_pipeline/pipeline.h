@@ -1,4 +1,4 @@
-// Copyright (c) 2007, 2008, 2009 libmv authors.
+// Copyright (c) 2011 libmv authors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -18,14 +18,27 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef LIBMV_LOGGING_LOGGING_H
-#define LIBMV_LOGGING_LOGGING_H
+#include <vector>
+#include "libmv/simple_pipeline/tracks.h"
+#include "libmv/simple_pipeline/reconstruction.h"
 
-#include "third_party/glog/src/glog/logging.h"
+namespace libmv {
 
-#define LG DLOG(INFO)
-#define V0 LOG(INFO)
-#define V1 LOG(INFO)
-#define V2 LOG(INFO)
+/*!
+    Estimate non-key camera poses and reconstruct scene 3D coordinates using all frames.
 
-#endif  // LIBMV_LOGGING_LOGGING_H
+    This method should be used once all keyframes have been processed to compute
+    cameras for all frames between the keyframes and to refine 3D reconstruction.
+
+    \a tracks should contain all markers used in the reconstruction.
+    \a reconstruction should contain the cameras for all processed keyframes.
+    \a reconstruction should contain the points for all processed keyframes.
+       Cameras for non-key frames will be added to \a reconstruction.
+
+    \sa Resect, Intersect, Bundle
+*/
+void CompleteReconstruction(const Tracks &tracks,
+                            Reconstruction *reconstruction);
+
+}  // namespace libmv
+

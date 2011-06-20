@@ -101,33 +101,22 @@ IF (APPLE)
   )
 ENDIF (APPLE)
 
-#IF (UNIX)
-  #INCLUDE_DIRECTORIES(
-    #third_party/png
-    #third_party/zlib)
-#ENDIF (UNIX)
-
 INCLUDE(Documentation)
 INCLUDE(Installation)
 INCLUDE(Testing)
 
 ADD_SUBDIRECTORY(libmv)
-ADD_SUBDIRECTORY(third_party)
+#ADD_SUBDIRECTORY(third_party)
 
 IF (BUILD_TESTS)
   ADD_SUBDIRECTORY(testing)
 ENDIF (BUILD_TESTS)
 
-IF (QT4_FOUND)
-  OPTION(BUILD_GUI "Build the GUI executables." ON)
-  IF (BUILD_GUI)
-    MESSAGE(STATUS "Qt4 found: GUI enabled.")
-    ADD_SUBDIRECTORY(ui)
-  ENDIF (BUILD_GUI)
-ELSE (QT4_FOUND)
-  MESSAGE(STATUS "Qt4 not found: GUI disabled.")
-  MESSAGE(STATUS "If you have installed Qt4, check that qmake.exe is accessible from your PATH.")
-ENDIF (QT4_FOUND)
+OPTION(BUILD_GUI "Build Qt Tracker" ON)
+IF (BUILD_GUI)
+ MESSAGE(STATUS "GUI enabled. You need to install Qt SDK to build Qt Tracker")
+ ADD_SUBDIRECTORY(ui)
+ENDIF (BUILD_GUI)
 
 OPTION(BUILD_TOOLS "Build the command line tools." OFF)
 IF (BUILD_TOOLS)
