@@ -27,6 +27,15 @@
 
 namespace libmv {
 
+/*!
+    A Camera is the location and rotation of the camera viewing \a image.
+
+    \a image identify which image from \l Tracks this camera represents.
+    \a R is a 3x3 matrix representing the rotation of the camera.
+    \a t is a translation vector representing its positions.
+
+    \sa Reconstruction
+*/
 struct Camera {
   Camera() : image(-1) {}
   Camera(const Camera &c) : image(c.image), R(c.R), t(c.t) {}
@@ -36,22 +45,68 @@ struct Camera {
   Vec3 t;
 };
 
+
+/*!
+    A Point is the 3D location of a track.
+
+    \a track identify which track from \l Tracks this point corresponds to.
+    \a X represents the 3D position of the track.
+
+    \sa Reconstruction
+*/
 struct Point {
   int track;
   Vec3 X;
 };
 
+/*!
+    The Reconstruction class stores \link Camera cameras \endlink and \link Point points \endlink.
+
+    The Reconstruction container is intended as the store of 3D reconstruction data
+    to be used with the MultiView API.
+
+    The container has lookups to query a \a Camera from an \a image or a \a Point from a \a track.
+
+    \sa Camera, Point
+*/
 class Reconstruction {
  public:
   Reconstruction();
 
+  /*!
+      Insert a camera into the set. If there is already a camera for the given
+      \a image, the existing camera is replaced. If there is no
+      camera for the given \a image, a new one is added.
+
+      \a image is the key used to retrieve the cameras with the
+      other methods in this class.
+
+      \note You should use the same \a image identifier as in \l Tracks.
+  */
   void InsertCamera(int image, const Mat3 &R, const Vec3 &t);
+
+  /*!
+      Insert a point into the set. If there is already a point for the given
+      \a track, the existing point is replaced. If there is no
+      point for the given \a track, a new one is added.
+
+      \a track is the key used to retrieve the points with the
+      other methods in this class.
+
+      \note You should use the same \a track identifier as in \l Tracks.
+  */
   void InsertPoint(int track, const Vec3 &X);
 
+  /// Returns a pointer to the camera corresponding to \a image.
   Camera *CameraForImage(int image);
+
+  /// Returns all cameras.
   std::vector<Camera> AllCameras();
 
+  /// Returns a pointer to the point corresponding to \a track.
   Point *PointForTrack(int track);
+
+  /// Returns all points.
   std::vector<Point> AllPoints();
 
  private:
