@@ -7,6 +7,7 @@ QT4_WRAP_CPP(SOURCES main.h tracker.h scene.h)
 ADD_EXECUTABLE(qt-tracker ${SOURCES})
 TARGET_LINK_LIBRARIES(qt-tracker
                       ${QT_LIBRARIES}
+                      ${OPENGL_LIBRARIES}
                       simple_pipeline
                       tracking
                       multiview

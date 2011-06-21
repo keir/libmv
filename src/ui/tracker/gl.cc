@@ -26,10 +26,14 @@
 #include <QStringList>
 
 #ifdef GLEW
-#include "GL/glew.h"
+# include "GL/glew.h"
 #else
-#define GL_GLEXT_PROTOTYPES
-#include "GL/gl.h"
+# define GL_GLEXT_PROTOTYPES
+# ifdef __APPLE__
+#  include "OpenGL/gl.h"
+# else
+#  include "GL/gl.h"
+# endif
 #endif
 
 #ifdef WIN32
