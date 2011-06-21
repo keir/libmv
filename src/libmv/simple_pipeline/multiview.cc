@@ -73,12 +73,14 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
   CoordinatesForMarkersInImage(markers, image1, &x1);
   CoordinatesForMarkersInImage(markers, image2, &x2);
 
-  Mat3 F, E;
+  Mat3 F;
   NormalizedEightPointSolver(x1, x2, &F);
 
-  // XXX Broken!
-  Mat3 K1, K2;
-  EssentialFromFundamental(F, K1, K2, &E);
+  // The F matrix should be an E matrix, but squash it just to be sure.
+  JacobiSVD<MatrixXf> svd(F, ComputeFullU | ComputeFullV);
+  Vec3 diag;
+  diag << 1, 1, 0;
+  Mat3 E = svd.matrixU() * diag.asDiagonal() * svd.matrixV().transpose();
 
   // Recover motion between the two images
   Mat3 dR;
@@ -109,7 +111,7 @@ void Bundle(const Tracks &tracks, Reconstruction *reconstruction) {
 bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
   (void) markers;
   (void) reconstruction;
-  // XXX
+  // Use nview triangulation
   return true;
 }
 
