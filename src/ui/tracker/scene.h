@@ -18,8 +18,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#ifndef UI_TRACKER_MULTIVIEW_H_
-#define UI_TRACKER_MULTIVIEW_H_
+#ifndef UI_TRACKER_SCENE_H_
+#define UI_TRACKER_SCENE_H_
 
 #include <QGLWidget>
 #include <QTimer>
@@ -29,36 +29,46 @@ namespace libmv {
 class Point;
 class Camera;
 class Reconstruction;
-} // namespace libmv
+}  // namespace libmv
 
 struct Object {
   mat4 transform;
   QVector<int> tracks;
-  void position(libmv::Reconstruction* reconstruction, vec3* min, vec3* max);
+  void position(libmv::Reconstruction* reconstruction,
+                vec3* min, vec3* max) const;
 };
 
-class View : public QGLWidget {
+struct Calibration {
+  float focal_length;
+  float principal_point[2];
+  float skew_factor;
+  float radial_distortion[5];
+  float tangential_distortion[2];
+};
+
+class Scene : public QGLWidget {
   Q_OBJECT
  public:
-  View(QWidget *parent = 0);
-  ~View();
-
+  Scene(libmv::Reconstruction* reconstruction, QGLWidget *shareWidget = 0);
+  ~Scene();
   void LoadCameras(QByteArray data);
   void LoadBundles(QByteArray data);
   void LoadObjects(QByteArray data);
+  void LoadCalibration(QByteArray data);
   QByteArray SaveCameras();
   QByteArray SaveBundles();
   QByteArray SaveObjects();
+  void SetImage(int image);
+  void Render(int w, int h, int image);
 
-  QPixmap renderCamera(int w,int h,int image);
-  
  public slots:
+  void select(QVector<int>);
   void add();
   void link();
   void upload();
 
  signals:
-  void trackChanged(int track);
+  void trackChanged(QVector<int> track);
   void imageChanged(int image);
   void objectChanged();
 
@@ -72,31 +82,29 @@ class View : public QGLWidget {
   void timerEvent(QTimerEvent*);
 
  private:
-  void DrawPoint(libmv::Point point, QVector<vec3>& points);
-  void DrawCamera(libmv::Camera camera, QVector<vec3>& lines);
-  void DrawObject(Object object, QVector<vec3>& quads);
+  void DrawPoint(const libmv::Point& point, QVector<vec3> *points);
+  void DrawCamera(const libmv::Camera& camera, QVector<vec3> *lines);
+  void DrawObject(const Object& object, QVector<vec3> *quads);
 
-  QScopedPointer<libmv::Reconstruction> reconstruction_;
+  libmv::Reconstruction* reconstruction_;
+  Calibration calibration_;
   QVector<Object> objects_;
-
   GLBuffer bundles_;
   GLBuffer cameras_;
   GLBuffer cubes_;
-
   QPoint drag_;
   bool grab_;
-  float pitch_,yaw_,speed_;
-  int walk_,strafe_,jump_;
+  float pitch_, yaw_, speed_;
+  int walk_, strafe_, jump_;
   vec3 position_;
   vec3 velocity_;
   vec3 momentum_;
   QBasicTimer timer_;
   mat4 projection_;
   mat4 view_;
-
   QVector<int> selected_tracks_;
-  int selected_image_;
-  Object* selected_object_;
+  int current_image_;
+  Object* active_object_;
 };
 
 #endif

@@ -41,7 +41,7 @@ void CompleteReconstruction(const Tracks &tracks,
       if (reconstruction->PointForTrack(track)) {
         continue;
       }
-      vector<Marker> all_markers = tracks.MarkersInTrack(track);
+      vector<Marker> all_markers = tracks.MarkersForTrack(track);
 
       vector<Marker> reconstructed_markers;
       for (int i = 0; i < all_markers.size(); ++i) {

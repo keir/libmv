@@ -21,42 +21,30 @@
 #ifndef UI_TRACKER_MAIN_H_
 #define UI_TRACKER_MAIN_H_
 
-#include <QApplication>
 #include <QMainWindow>
-#include <QGraphicsView>
-#include <QToolBar>
 #include <QSpinBox>
-#include <QAction>
 #include <QSlider>
+#include <QLabel>
 #include <QCache>
 #include <QTimer>
 
+namespace libmv {
+class Tracks;
+class Reconstruction;
+}  // namespace libmv
+
 class Tracker;
-class QGraphicsItem;
-class QGraphicsScene;
-class QGraphicsPixmapItem;
-class View;
+class Zoom;
+class Scene;
 
 class Clip : public QObject, public QList<QString>   {
   Q_OBJECT
  public:
-  Clip(QObject* parent=0) : QObject(parent) {}
+  explicit Clip(QObject* parent = 0) : QObject(parent) {}
   void Open(QString path);
-  QImage Frame(int frame);
+  QImage Image(int frame);
  private:
   QCache<int, QImage> cache_;
-};
-
-class TrackerView : public QGraphicsView {
-  Q_OBJECT
- public:
-  TrackerView(QGraphicsScene *scene,QWidget *parent = 0);
- signals:
-  void geometryChanged();
- protected:
-  void resizeEvent(QResizeEvent*) {
-    emit geometryChanged();
-  }
 };
 
 class MainWindow : public QMainWindow {
@@ -69,40 +57,43 @@ class MainWindow : public QMainWindow {
   void open();
   void open(QString);
   void seek(int);
-  void toggleTracking(bool);
-  void toggleBackward(bool);
-  void toggleForward(bool);
   void stop();
   void first();
   void previous();
   void next();
   void last();
-
-  void fitImage();
-  void fitZoom(QGraphicsItem*);
-  void updateOverlay();
+  void toggleTracking(bool);
+  void toggleKeyframe(bool);
+  void toggleBackward(bool);
+  void toggleForward(bool);
+  void toggleZoom(bool);
+  void updateZooms(QVector<int>);
+  void solve();
 
  private:
   QByteArray Load(QString name);
-  void Save(QString name,QByteArray data);
+  void Save(QString name, QByteArray data);
 
   QString path_;
   Clip *clip_;
-  Tracker *tracker_;
-  QGraphicsPixmapItem *pixmap_;
-  QGraphicsPixmapItem *overlay_;
-  int current_frame_;
+  libmv::Tracks* tracks_;
+  QVector<int> keyframes_;
+  libmv::Reconstruction* reconstruction_;
 
+  Scene *scene_;
+  Tracker *tracker_;
+  QVector<Zoom*> zooms_;
+  QVector<QDockWidget*> zooms_docks_;
+
+  int current_frame_;
+  QAction *zoom_action_;
   QAction *track_action_;
+  QAction *keyframe_action_;
   QAction *backward_action_;
   QAction *forward_action_;
   QSpinBox spinbox_;
   QSlider slider_;
-
-  TrackerView *image_view_;
-  TrackerView *zoom_view_;
-  View* scene_view_;
-
+  QLabel keyframe_label_;
   QTimer previous_timer_;
   QTimer next_timer_;
 };

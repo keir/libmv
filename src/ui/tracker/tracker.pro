@@ -1,20 +1,14 @@
 QT += opengl
-HEADERS += view.h gl.h tracker.h main.h
-SOURCES += view.cc gl.cc tracker.cc main.cc
+HEADERS += scene.h gl.h tracker.h main.h
+SOURCES += scene.cc gl.cc tracker.cc main.cc
 OTHER_FILES += shader.glsl
 RESOURCES = tracker.qrc
 INCLUDEPATH += ../..
 INCLUDEPATH += /usr/include/eigen3/
-INCLUDEPATH += ../../third_party/glog/src
-
-CONFIG(debug, debug|release) {
- #LIBS += -L../../../bin-dbg/lib/ -lsimple_pipeline_d -limage_d -ltracking_d -lmultiview_d -lglog -lgflags
- LIBS += -L../../../bin-opt/lib/ -lsimple_pipeline -limage -ltracking -lmultiview -lglog -lgflags
-} else {
- LIBS += -L../../../bin-opt/lib/ -lsimple_pipeline -limage -ltracking -lmultiview -lglog -lgflags
-}
+LIBS += -L../../../bin-opt/lib/ -lsimple_pipeline -limage -ltracking -lmultiview
 
 win32:CONFIG+=glew
+exists(/usr/include/GL/glew.h):CONFIG+=glew
 glew {
  DEFINES += GLEW
  win32 {
@@ -42,3 +36,4 @@ OTHER_FILES += ../../libmv/image/image_pyramid.cc ../../libmv/image/image_pyrami
 OTHER_FILES += ../../libmv/image/convolve.cc ../../libmv/image/convolve.h
 OTHER_FILES += ../../libmv/simple_pipeline/*.h ../../libmv/simple_pipeline/*.cc
 OTHER_FILES += ../../libmv/tracking/*.h ../../libmv/tracking/*.cc
+OTHER_FILES += ../../libmv/multiview/fundamental.cc ../../libmv/multiview/projection.cc
