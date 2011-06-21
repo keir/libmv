@@ -77,7 +77,7 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
   NormalizedEightPointSolver(x1, x2, &F);
 
   // The F matrix should be an E matrix, but squash it just to be sure.
-  JacobiSVD<MatrixXf> svd(F, ComputeFullU | ComputeFullV);
+  Eigen::JacobiSVD<Mat3> svd(F, Eigen::ComputeFullU | Eigen::ComputeFullV);
   Vec3 diag;
   diag << 1, 1, 0;
   Mat3 E = svd.matrixU() * diag.asDiagonal() * svd.matrixV().transpose();
