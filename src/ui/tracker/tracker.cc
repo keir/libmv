@@ -208,7 +208,6 @@ bool compare_image(const Marker &a, const Marker &b) {
     return a.image < b.image;
 }
 
-
 void Tracker::upload() {
   vector<Marker> markers = tracks_->MarkersInImage(current_image_);
   QVector<vec2> lines;
@@ -223,6 +222,10 @@ void Tracker::upload() {
   }
   foreach (int track, selected_tracks_) {
     Marker marker = tracks_->MarkerInImageForTrack(current_image_, track);
+    if (marker.image < 0) {
+      selected_tracks_.remove(selected_tracks_.indexOf(track));
+      continue;
+    }
     DrawMarker(marker, &lines);
     DrawMarker(marker, &lines);
     DrawMarker(marker, &lines);

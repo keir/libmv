@@ -54,7 +54,7 @@ void GetImagesInMarkers(const vector<Marker> &markers,
 
 bool ReconstructTwoFrames(const vector<Marker> &markers,
                           Reconstruction *reconstruction) {
-  if (markers.size() < 8) {
+  if (markers.size() < 16) {
     return false;
   }
 
@@ -92,24 +92,24 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
   return true;
 }
 
-void Bundle(const Tracks &tracks, Reconstruction *reconstruction) {
-  (void) tracks;
-  (void) reconstruction;
-  // XXX
-}
-
-bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
-  (void) markers;
-  (void) reconstruction;
+bool Resect(const vector<Marker> &markers, Reconstruction */*reconstruction*/) {
+  if (markers.size() < 8) {
+    return false;
+  }
   // XXX
   return true;
 }
 
-bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
-  (void) markers;
-  (void) reconstruction;
+bool Intersect(const vector<Marker> &markers, Reconstruction */*reconstruction*/) {
+  if (markers.size() < 4) {
+    return false;
+  }
   // XXX
   return true;
+}
+
+void Bundle(const Tracks &/*tracks*/, Reconstruction */*reconstruction*/) {
+  // XXX
 }
 
 }  // namespace libmv
