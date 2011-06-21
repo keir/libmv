@@ -371,7 +371,7 @@ void MainWindow::toggleKeyframe(bool keyframe) {
             tracks_->MarkersForTracksInBothImages(keyframes_[0],keyframes_[1]),
             reconstruction_);
       scene_->upload();
-    } else {
+    } else if(keyframes_.count()>2) {
       // TODO(MatthiasF): do we need to resect and intersect again subsequent frames ?
       libmv::Resect(
             tracks_->MarkersForTracksInBothImages(keyframes_[i-1],current_frame_),

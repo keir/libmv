@@ -295,19 +295,32 @@ void Scene::Render(int w, int h, int image) {
   }
 
   /// Display bundles
-  static GLShader bundle_shader;
-  if (!bundle_shader.id) {
-    bundle_shader.compile(glsl("vertex transform distort bundle"),
-                          glsl("fragment bundle"));
-  }
-  bundle_shader.bind();
-  bundle_shader["transform"] = transform;
-  bundle_shader["center"] = vec2(0, 0);
-  bundle_shader["K1"] = calibration_.radial_distortion[0];
-  bundles_.bind();
-  bundles_.bindAttribute(&bundle_shader, "position", 3);
   glAdditiveBlendMode();
-  bundles_.draw();
+  if (image >= 0) {
+    static GLShader distort_bundle_shader;
+    if (!distort_bundle_shader.id) {
+      distort_bundle_shader.compile(glsl("vertex transform distort bundle"),
+                            glsl("fragment bundle"));
+    }
+    distort_bundle_shader.bind();
+    distort_bundle_shader["transform"] = transform;
+    distort_bundle_shader["center"] = vec2(0, 0);
+    distort_bundle_shader["K1"] = calibration_.radial_distortion[0];
+    bundles_.bind();
+    bundles_.bindAttribute(&distort_bundle_shader, "position", 3);
+    bundles_.draw();
+  } else {
+    static GLShader bundle_shader;
+    if (!bundle_shader.id) {
+      bundle_shader.compile(glsl("vertex transform bundle"),
+                            glsl("fragment bundle"));
+    }
+    bundle_shader.bind();
+    bundle_shader["transform"] = transform;
+    bundles_.bind();
+    bundles_.bindAttribute(&bundle_shader, "position", 3);
+    bundles_.draw();
+  }
 
   /// Display cameras
   static GLShader camera_shader;
