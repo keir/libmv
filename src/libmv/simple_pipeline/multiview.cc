@@ -30,17 +30,17 @@ namespace libmv {
 void CoordinatesForMarkersInImage(const vector<Marker> &markers,
                                   int image,
                                   Mat *coordinates) {
-  // Figure out how many coordinates.
-  int num_coordinates_for_image = 0;
+  vector<Vec2> coords;
   for (int i = 0; i < markers.size(); ++i) {
-    num_coordinates_for_image += (markers[i].image == image);
-  }
-  coordinates->resize(2, num_coordinates_for_image);
-  for (int i = 0; i < markers.size(); ++i) {
+    const Marker &marker = markers[i];
     if (markers[i].image == image) {
-      (*coordinates)(0, i) = markers[i].x;
-      (*coordinates)(1, i) = markers[i].y;
+      coords.push_back(Vec2(marker.x, marker.y));
     }
+  }
+  // FIXME: avoid pointless conversions between abstractions
+  coordinates->resize(2, coords.size());
+  for (int i = 0; i < coords.size(); i++) {
+    coordinates->col(i) = coords[i];
   }
 }
 
@@ -127,7 +127,7 @@ bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
         0, 0, 1;
     Mat34 P;
     P_From_KRt(K, camera.R, camera.t, &P);
-    Ps.push_back( P );
+    Ps.push_back(P);
   }
   {
     Camera camera = *reconstruction->CameraForImage(image2);
@@ -141,7 +141,7 @@ bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
         0, 0, 1;
     Mat34 P;
     P_From_KRt(K, camera.R, camera.t, &P);
-    Ps.push_back( P );
+    Ps.push_back(P);
   }
 
   // FIXME: the API makes retrieving matching markers quite inconvenient
@@ -150,21 +150,17 @@ bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
     for(int j = 0; j < i; j++) {
       Marker b = markers[j];
       if(a.track == b.track) {
-        Matrix<double, 2, Dynamic>  x(2,2);
+        Matrix<double, 2, Dynamic>  x(2, 2);
         if(a.image == image1 && b.image == image2) {
-          x.col(0) = Vec2(a.x,a.y);
-          x.col(1) = Vec2(b.x,b.y);
+          x.col(0) = Vec2(a.x, a.y);
+          x.col(1) = Vec2(b.x, b.y);
         } else {
-          x.col(0) = Vec2(b.x,b.y);
-          x.col(1) = Vec2(a.x,a.y);
+          x.col(0) = Vec2(b.x, b.y);
+          x.col(1) = Vec2(a.x, a.y);
         }
         Matrix<double, 4, 1> X;
-        NViewTriangulate(x,Ps,&X);
-        Vec3 X_as_vector;
-        for(int i = 0;i < 3; i++) {
-          X_as_vector(i) = X.coeff(i,0);
-        }
-        reconstruction->InsertPoint(a.track,X_as_vector);
+        NViewTriangulate(x, Ps, &X);
+        reconstruction->InsertPoint(a.track, X.row(0).head<3>());
       }
     }
   }

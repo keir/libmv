@@ -72,7 +72,6 @@ struct Point {
 */
 class Reconstruction {
  public:
-  Reconstruction();
 
   /*!
       Insert a camera into the set. If there is already a camera for the given

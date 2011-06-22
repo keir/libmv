@@ -5,7 +5,8 @@ OTHER_FILES += shader.glsl
 RESOURCES = tracker.qrc
 INCLUDEPATH += ../..
 INCLUDEPATH += /usr/include/eigen3/
-LIBS += -L../../../bin-opt/lib/ -lsimple_pipeline -limage -ltracking -lmultiview
+LIBS += -L../../../bin-dbg/lib/ -lsimple_pipeline_d -limage_d -ltracking_d -lmultiview_d -lglog
+#LIBS += -L../../../bin-opt/lib/ -lsimple_pipeline -limage -ltracking -lmultiview
 
 win32:CONFIG+=glew
 exists(/usr/include/GL/glew.h):CONFIG+=glew

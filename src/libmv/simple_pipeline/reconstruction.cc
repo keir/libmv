@@ -29,9 +29,6 @@ void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
   (*P) = K * (*P);
 }
 
-// Start out with some space.
-Reconstruction::Reconstruction() : cameras_(1000), points_(1000) {}
-
 void Reconstruction::InsertCamera(int image, const Mat3 &R, const Vec3 &t) {
   if (image >= cameras_.size()) {
     cameras_.resize(image + 1);

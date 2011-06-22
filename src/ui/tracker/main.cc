@@ -187,12 +187,14 @@ void MainWindow::Save(QString name, QByteArray data) {
 MainWindow::~MainWindow() {
   QSettings().setValue("geometry", saveGeometry());
   QSettings().setValue("windowState", saveState());
+  QSettings().setValue("currentFrame", current_frame_);
   if (clip_->isEmpty()) return;
   Save("tracks", tracker_->Save());
   Save("cameras", scene_->SaveCameras());
   Save("bundles", scene_->SaveBundles());
   Save("objects", scene_->SaveObjects());
-  Save("keyframes", QByteArray((char*)keyframes_.data(),keyframes_.size()*sizeof(int)));
+  Save("keyframes", QByteArray((char*)keyframes_.data(),
+                               keyframes_.size()*sizeof(int)));
   delete reconstruction_;
   delete tracks_;
 }
@@ -274,7 +276,12 @@ void MainWindow::open(QString path) {
   scene_->upload();
   spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
-  first();
+  int frame = QSettings().value("currentFrame", 0).toInt();
+  if(frame < clip_->size()) {
+    seek(frame);
+  } else {
+    seek(0);
+  }
 }
 
 void MainWindow::seek(int frame) {

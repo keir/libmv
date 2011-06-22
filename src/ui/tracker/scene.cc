@@ -108,8 +108,8 @@ QByteArray Scene::SaveCameras() {
 
 QByteArray Scene::SaveBundles() {
  vector<Point> points = reconstruction_->AllPoints();
-  return QByteArray(reinterpret_cast<char *>(points.data()),
-                    points.size() * sizeof(Point));
+ return QByteArray(reinterpret_cast<char *>(points.data()),
+                   points.size() * sizeof(Point));
 }
 
 QByteArray Scene::SaveObjects() {
