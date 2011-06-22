@@ -160,6 +160,11 @@ bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
         }
         Matrix<double, 4, 1> X;
         NViewTriangulate(x,Ps,&X);
+        Vec3 X_as_vector;
+        for(int i = 0;i < 3; i++) {
+          X_as_vector(i) = X.coeff(i,0);
+        }
+        reconstruction->InsertPoint(a.track,X_as_vector);
       }
     }
   }

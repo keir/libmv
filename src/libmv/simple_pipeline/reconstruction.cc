@@ -23,6 +23,12 @@
 
 namespace libmv {
 
+void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
+  P->block<3, 3>(0, 0) = R;
+  P->col(3) = t;
+  (*P) = K * (*P);
+}
+
 // Start out with some space.
 Reconstruction::Reconstruction() : cameras_(1000), points_(1000) {}
 

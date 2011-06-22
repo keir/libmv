@@ -34,9 +34,6 @@ using libmv::Vec3;
 using libmv::Mat3;
 using libmv::Mat34;
 
-/// TODO(MatthiasF): keep this define as long we don't have reconstruction.
-#define RANDOM
-
 void Object::position(libmv::Reconstruction* reconstruction,
                       vec3* min, vec3* max) const {
   vec3 mean;
@@ -75,32 +72,6 @@ Scene::Scene(libmv::Reconstruction *reconstruction, QGLWidget *shareWidget)
   setFocusPolicy(Qt::StrongFocus);
   makeCurrent();
   glInitialize();
-
-#ifdef RANDOM
-  const int nofTracks = 65536;
-  for (int track = 0; track < nofTracks; track++) {
-    vec3 random = vec3(rand()-RAND_MAX/2, rand()-RAND_MAX/2, rand()-RAND_MAX/2)
-        * (256.0/RAND_MAX);
-    reconstruction_->InsertPoint(track, Vec3(random.x, random.y, random.z));
-  }
-
-  const int nofImages = 256;
-  for (int image = 0; image < nofImages; image++) {
-    vec3 random = vec3(rand()-RAND_MAX/2, rand()-RAND_MAX/2, rand()-RAND_MAX/2)
-        * (256.0/RAND_MAX);
-    float angles[3];
-    for (int i = 0; i < 3; i++) angles[i] = 2*PI*rand()/RAND_MAX;
-    mat4 transform;
-    transform.rotateX(angles[0]);
-    transform.rotateY(angles[1]);
-    transform.rotateZ(angles[2]);
-    Mat3 R;
-    for (int i = 0 ; i < 3 ; i++) for (int j = 0 ; j < 3 ; j++) {
-      R(i, j) = transform(i, j);
-    }
-    reconstruction_->InsertCamera(image, R, Vec3(random.x, random.y, random.z));
-  }
-#endif
 }
 Scene::~Scene() {}
 
@@ -130,19 +101,13 @@ void Scene::LoadCalibration(QByteArray data) {
 }
 
 QByteArray Scene::SaveCameras() {
-#ifdef RANDOM
-  return QByteArray();
-#endif
   vector<Camera> cameras = reconstruction_->AllCameras();
   return QByteArray(reinterpret_cast<char *>(cameras.data()),
                     cameras.size() * sizeof(Camera));
 }
 
 QByteArray Scene::SaveBundles() {
-#ifdef RANDOM
-  return QByteArray();
-#endif
-  vector<Point> points = reconstruction_->AllPoints();
+ vector<Point> points = reconstruction_->AllPoints();
   return QByteArray(reinterpret_cast<char *>(points.data()),
                     points.size() * sizeof(Point));
 }

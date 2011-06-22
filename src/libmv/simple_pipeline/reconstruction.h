@@ -26,11 +26,7 @@
 
 namespace libmv {
 
-static void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
-  P->block<3, 3>(0, 0) = R;
-  P->col(3) = t;
-  (*P) = K * (*P);
-}
+void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P);
 
 /*!
     A Camera is the location and rotation of the camera viewing \a image.
