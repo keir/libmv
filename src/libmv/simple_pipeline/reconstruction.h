@@ -21,11 +21,16 @@
 #ifndef LIBMV_SIMPLE_PIPELINE_RECONSTRUCTION_H_
 #define LIBMV_SIMPLE_PIPELINE_RECONSTRUCTION_H_
 
-#include <vector>
-
+#include "libmv/base/vector.h"
 #include "libmv/numeric/numeric.h"
 
 namespace libmv {
+
+static void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
+  P->block<3, 3>(0, 0) = R;
+  P->col(3) = t;
+  (*P) = K * (*P);
+}
 
 /*!
     A Camera is the location and rotation of the camera viewing \a image.
@@ -101,17 +106,17 @@ class Reconstruction {
   Camera *CameraForImage(int image);
 
   /// Returns all cameras.
-  std::vector<Camera> AllCameras();
+  vector<Camera> AllCameras();
 
   /// Returns a pointer to the point corresponding to \a track.
   Point *PointForTrack(int track);
 
   /// Returns all points.
-  std::vector<Point> AllPoints();
+  vector<Point> AllPoints();
 
  private:
-  std::vector<Camera> cameras_;
-  std::vector<Point> points_;
+  vector<Camera> cameras_;
+  vector<Point> points_;
 };
 
 }  // namespace libmv

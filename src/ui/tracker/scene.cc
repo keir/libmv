@@ -21,22 +21,18 @@
 #include "ui/tracker/scene.h"
 #include "ui/tracker/gl.h"
 
+#include "libmv/base/vector.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 
 #include <QMouseEvent>
 #include <QKeyEvent>
 
+using libmv::vector;
 using libmv::Camera;
 using libmv::Point;
 using libmv::Vec3;
 using libmv::Mat3;
 using libmv::Mat34;
-
-static void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
-  P->block<3, 3>(0, 0) = R;
-  P->col(3) = t;
-  (*P) = K * (*P);
-}
 
 /// TODO(MatthiasF): keep this define as long we don't have reconstruction.
 #define RANDOM
@@ -137,7 +133,7 @@ QByteArray Scene::SaveCameras() {
 #ifdef RANDOM
   return QByteArray();
 #endif
-  std::vector<Camera> cameras = reconstruction_->AllCameras();
+  vector<Camera> cameras = reconstruction_->AllCameras();
   return QByteArray(reinterpret_cast<char *>(cameras.data()),
                     cameras.size() * sizeof(Camera));
 }
@@ -146,7 +142,7 @@ QByteArray Scene::SaveBundles() {
 #ifdef RANDOM
   return QByteArray();
 #endif
-  std::vector<Point> points = reconstruction_->AllPoints();
+  vector<Point> points = reconstruction_->AllPoints();
   return QByteArray(reinterpret_cast<char *>(points.data()),
                     points.size() * sizeof(Point));
 }
@@ -221,10 +217,11 @@ void Scene::DrawObject(const Object& object, QVector<vec3> *quads) {
 }
 
 void Scene::upload() {
-  std::vector<Point> all_points = reconstruction_->AllPoints();
+  vector<Point> all_points = reconstruction_->AllPoints();
   QVector<vec3> points;
   points.reserve(all_points.size());
-  foreach (Point point, all_points) {
+  for (int i = 0; i < all_points.size(); i++) {
+    const Point &point = all_points[i];
     DrawPoint(point, &points);
   }
   foreach (int track, selected_tracks_) {
@@ -236,10 +233,11 @@ void Scene::upload() {
   bundles_.primitiveType = 1;
   bundles_.upload(points.constData(), points.count(), sizeof(vec3));
 
-  std::vector<Camera> all_cameras = reconstruction_->AllCameras();
+  vector<Camera> all_cameras = reconstruction_->AllCameras();
   QVector<vec3> lines;
   lines.reserve(all_cameras.size()*16);
-  foreach (Camera camera, all_cameras) {
+  for (int i = 0; i < all_cameras.size(); i++) {
+    const Camera &camera = all_cameras[i];
     DrawCamera(camera, &lines);
   }
   if (current_image_ >= 0) {
@@ -277,7 +275,7 @@ void Scene::Render(int w, int h, int image) {
          0, calibration_.focal_length, (h-1)/2,
          0, 0,                         1;
     Mat34 P;
-    P_From_KRt(K, camera.R, camera.t, &P);
+    libmv::P_From_KRt(K, camera.R, camera.t, &P);
     for (int j = 0 ; j < 4 ; j++) {
       transform(0, j) = P(0, j);
       transform(1, j) = P(1, j);
@@ -409,7 +407,9 @@ void Scene::mouseReleaseEvent(QMouseEvent* e) {
                                                   1-2.0*e->y()/height(), 1));
     float min_distance = 1;
     int hit_track = -1, hit_image = -1, hit_object = -1;
-    foreach (Point point, reconstruction_->AllPoints()) {
+    vector<Point> points = reconstruction_->AllPoints();
+    for (int i = 0; i < points.size(); i++) {
+      const Point &point = points[i];
       vec3 o = vec3(point.X.x(), point.X.y(), point.X.z())-position_;
       double t = dot(d, o) / dot(d, d);
       if (t < 0) continue;
@@ -419,7 +419,9 @@ void Scene::mouseReleaseEvent(QMouseEvent* e) {
         hit_track = point.track;
       }
     }
-    foreach (Camera camera, reconstruction_->AllCameras()) {
+    vector<Camera> cameras = reconstruction_->AllCameras();
+    for (int i = 0; i < cameras.size(); i++) {
+      const Camera &camera = cameras[i];
       vec3 o = vec3(camera.t.x(), camera.t.y(), camera.t.z())-position_;
       double t = dot(d, o) / dot(d, d);
       if (t < 0) continue;

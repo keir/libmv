@@ -25,8 +25,6 @@
 #include "libmv/numeric/numeric.h"
 #include "libmv/simple_pipeline/tracks.h"
 
-using std::vector;
-
 namespace libmv {
 
 void Tracks::Insert(int image, int track, double x, double y) {
@@ -71,8 +69,8 @@ vector<Marker> Tracks::MarkersForTrack(int track) const {
 }
 
 vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) const {
-  vector<int> image1_tracks;
-  vector<int> image2_tracks;
+  std::vector<int> image1_tracks;
+  std::vector<int> image2_tracks;
 
   for (int i = 0; i < markers_.size(); ++i) {
     int image = markers_[i].image;
@@ -86,7 +84,7 @@ vector<Marker> Tracks::MarkersForTracksInBothImages(int image1, int image2) cons
   std::sort(image1_tracks.begin(), image1_tracks.end());
   std::sort(image2_tracks.begin(), image2_tracks.end());
 
-  vector<int> intersection;
+  std::vector<int> intersection;
   std::set_intersection(image1_tracks.begin(), image1_tracks.end(),
                         image2_tracks.begin(), image2_tracks.end(),
                         std::back_inserter(intersection));

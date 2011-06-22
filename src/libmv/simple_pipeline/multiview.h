@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include <vector>
+#include "libmv/base/vector.h"
 #include "libmv/simple_pipeline/tracks.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 
@@ -41,7 +41,7 @@ namespace libmv {
 
     \sa Resect
 */
-bool ReconstructTwoFrames(const std::vector<Marker> &markers,
+bool ReconstructTwoFrames(const vector<Marker> &markers,
                           Reconstruction *reconstruction);
 
 /*!
@@ -67,7 +67,7 @@ bool ReconstructTwoFrames(const std::vector<Marker> &markers,
 
     \sa ReconstructTwoFrames
 */
-bool Resect(const std::vector<Marker> &markers,
+bool Resect(const vector<Marker> &markers,
             Reconstruction *reconstruction);
 
 /*!
@@ -89,7 +89,7 @@ bool Resect(const std::vector<Marker> &markers,
 
     \sa Resect
 */
-bool Intersect(const std::vector<Marker> &markers,
+bool Intersect(const vector<Marker> &markers,
                Reconstruction *reconstruction);
 
 /*!

@@ -23,17 +23,16 @@
 #include "ui/tracker/gl.h"
 
 #include "libmv/image/image.h"
+#include "libmv/base/vector.h"
 #include "libmv/simple_pipeline/tracks.h"
 #include "libmv/tracking/klt_region_tracker.h"
 #include "libmv/tracking/trklt_region_tracker.h"
 #include "libmv/tracking/pyramid_region_tracker.h"
 #include "libmv/tracking/retrack_region_tracker.h"
 using libmv::Marker;
+using libmv::vector;
 
 #include <QMouseEvent>
-
-#include <vector>
-using std::vector;
 
 // Copy the region starting at *x0, *y0 with width w, h into region. If the
 // region asked for is outside the image border, clipping is done and the
@@ -98,7 +97,7 @@ void Tracker::Load(QByteArray data) {
 }
 
 QByteArray Tracker::Save() {
-  std::vector<Marker> markers = tracks_->AllMarkers();
+  vector<Marker> markers = tracks_->AllMarkers();
   return QByteArray(reinterpret_cast<char *>(markers.data()),
                     markers.size() * sizeof(Marker));
 }
@@ -118,7 +117,8 @@ void Tracker::SetImage(int image, QImage new_image, bool track) {
         new libmv::PyramidRegionTracker(trklt_region_tracker, 3);
     libmv::RetrackRegionTracker region_tracker(pyramid_region_tracker, 0.2);
     vector<Marker> previous_markers = tracks_->MarkersInImage(previous_image);
-    foreach (const Marker &marker, previous_markers) {
+    for (int i = 0; i < previous_markers.size(); i++) {
+      const Marker &marker = previous_markers[i];
       if (!selected_tracks_.contains(marker.track)) {
         continue;
       }
@@ -212,11 +212,12 @@ void Tracker::upload() {
   vector<Marker> markers = tracks_->MarkersInImage(current_image_);
   QVector<vec2> lines;
   lines.reserve(markers.size()*8);
-  foreach (Marker marker, markers) {
+  for (int i = 0; i < markers.size(); i++) {
+    const Marker &marker = markers[i];
     DrawMarker(marker, &lines);
     vector<Marker> track = tracks_->MarkersForTrack(marker.track);
     qSort(track.begin(), track.end(), compare_image);
-    for (size_t i = 0; i < track.size()-1; i++) {
+    for (int i = 0; i < track.size()-1; i++) {
       lines << vec2(track[i].x, track[i].y) << vec2(track[i+1].x, track[i+1].y);
     }
   }
@@ -300,7 +301,8 @@ void Tracker::mousePressEvent(QMouseEvent* e) {
                                        1-2.0*e->y()/height());
   last_position_ = pos;
   vector<Marker> markers = tracks_->MarkersInImage(current_image_);
-  foreach (Marker marker, markers) {
+  for (int i = 0; i < markers.size(); i++) {
+    const Marker &marker = markers[i];
     vec2 center = vec2(marker.x, marker.y);
     if (pos > center-kSearchWindowSize && pos < center+kSearchWindowSize) {
       active_track_ = marker.track;

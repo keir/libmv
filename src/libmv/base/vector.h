@@ -68,6 +68,7 @@ class vector {
     std::swap(data_, other.data_);
   }
 
+        T *data()            const { return data_;            }
   int      size()            const { return size_;            }
   int      capacity()        const { return capacity_;        }
   const T& back()            const { return data_[size_ - 1]; }

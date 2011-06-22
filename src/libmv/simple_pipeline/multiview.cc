@@ -18,14 +18,12 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-#include <vector>
-
+#include "libmv/base/vector.h"
 #include "libmv/numeric/numeric.h"
 #include "libmv/multiview/fundamental.h"
 #include "libmv/simple_pipeline/tracks.h"
 #include "libmv/simple_pipeline/reconstruction.h"
-
-using std::vector;
+#include "libmv/multiview/nviewtriangulation.h"
 
 namespace libmv {
 
@@ -48,7 +46,7 @@ void CoordinatesForMarkersInImage(const vector<Marker> &markers,
 
 void GetImagesInMarkers(const vector<Marker> &markers,
                         int *image1, int *image2) {
-  if (markers.empty()) {
+  if (markers.size() < 2) {
     return;
   }
   *image1 = markers[0].image;
@@ -106,13 +104,64 @@ bool Resect(const vector<Marker> &markers, Reconstruction */*reconstruction*/) {
   if (markers.size() < 8) {
     return false;
   }
-  // Use nview triangulation
   return true;
 }
 
-bool Intersect(const vector<Marker> &markers, Reconstruction */*reconstruction*/) {
+bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
   if (markers.size() < 4) {
     return false;
+  }
+  int image1, image2;
+  GetImagesInMarkers(markers, &image1, &image2);
+
+  vector<Matrix<double, 3, 4> > Ps;
+  {
+    Camera camera = *reconstruction->CameraForImage(image1);
+    Mat3 K;
+    // FIXME: we need calibration data
+    /*K << calibration_.focal_length, 0, (w-1)/2,
+      0, calibration_.focal_length, (h-1)/2,
+      0, 0,                         1;*/
+    K << 1, 0, 0,
+        0, 1, 0,
+        0, 0, 1;
+    Mat34 P;
+    P_From_KRt(K, camera.R, camera.t, &P);
+    Ps.push_back( P );
+  }
+  {
+    Camera camera = *reconstruction->CameraForImage(image2);
+    Mat3 K;
+    // FIXME: we need calibration data
+    /*K << calibration_.focal_length, 0, (w-1)/2,
+      0, calibration_.focal_length, (h-1)/2,
+      0, 0,                         1;*/
+    K << 1, 0, 0,
+        0, 1, 0,
+        0, 0, 1;
+    Mat34 P;
+    P_From_KRt(K, camera.R, camera.t, &P);
+    Ps.push_back( P );
+  }
+
+  // FIXME: the API makes retrieving matching markers quite inconvenient
+  for(int i = 0; i < markers.size(); i++) {
+    Marker a = markers[i];
+    for(int j = 0; j < i; j++) {
+      Marker b = markers[j];
+      if(a.track == b.track) {
+        Matrix<double, 2, Dynamic>  x(2,2);
+        if(a.image == image1 && b.image == image2) {
+          x.col(0) = Vec2(a.x,a.y);
+          x.col(1) = Vec2(b.x,b.y);
+        } else {
+          x.col(0) = Vec2(b.x,b.y);
+          x.col(1) = Vec2(a.x,a.y);
+        }
+        Matrix<double, 4, 1> X;
+        NViewTriangulate(x,Ps,&X);
+      }
+    }
   }
   return true;
 }

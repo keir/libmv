@@ -19,9 +19,6 @@
 // IN THE SOFTWARE.
 
 #include "libmv/simple_pipeline/reconstruction.h"
-
-#include <vector>
-
 #include "libmv/numeric/numeric.h"
 
 namespace libmv {
@@ -50,8 +47,8 @@ Camera *Reconstruction::CameraForImage(int image) {
   return (cameras_[image].image == -1) ? NULL : &cameras_[image];
 }
 
-std::vector<Camera> Reconstruction::AllCameras() {
-  std::vector<Camera> cameras;
+vector<Camera> Reconstruction::AllCameras() {
+  vector<Camera> cameras;
   for (int i = 0; i < cameras_.size(); ++i) {
     if (cameras_[i].image != -1) {
       cameras.push_back(cameras_[i]);
@@ -64,8 +61,8 @@ Point *Reconstruction::PointForTrack(int track) {
   return (points_[track].track == -1) ? NULL : &points_[track];
 }
 
-std::vector<Point> Reconstruction::AllPoints() {
-  std::vector<Point> points;
+vector<Point> Reconstruction::AllPoints() {
+  vector<Point> points;
   for (int i = 0; i < points_.size(); ++i) {
     if (points_[i].track != -1) {
       points.push_back(points_[i]);

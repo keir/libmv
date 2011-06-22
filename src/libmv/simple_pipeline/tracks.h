@@ -21,7 +21,7 @@
 #ifndef LIBMV_SIMPLE_PIPELINE_TRACKS_H_
 #define LIBMV_SIMPLE_PIPELINE_TRACKS_H_
 
-#include <vector>
+#include "libmv/base/vector.h"
 
 namespace libmv {
 
@@ -68,13 +68,13 @@ class Tracks {
   void Insert(int image, int track, double x, double y);
 
   /// Returns all the markers.
-  std::vector<Marker> AllMarkers() const;
+  vector<Marker> AllMarkers() const;
 
   /// Returns all the markers belonging to a track.
-  std::vector<Marker> MarkersForTrack(int track) const;
+  vector<Marker> MarkersForTrack(int track) const;
 
   /// Returns all the markers visible in \a image.
-  std::vector<Marker> MarkersInImage(int image) const;
+  vector<Marker> MarkersInImage(int image) const;
 
   /*!
       Returns the markers in \a image1 and \a image2 which have a common track.
@@ -82,7 +82,7 @@ class Tracks {
       This is not the same as the union of the markers in \a image1 and \a
       image2; each marker is for a track that appears in both images.
   */
-  std::vector<Marker> MarkersForTracksInBothImages(int image1, int image2) const;
+  vector<Marker> MarkersForTracksInBothImages(int image1, int image2) const;
 
   /// Returns the marker in \a image belonging to \a track.
   Marker MarkerInImageForTrack(int image, int track) const;
@@ -100,7 +100,7 @@ class Tracks {
   int MaxTrack() const;
 
  private:
-  std::vector<Marker> markers_;
+  vector<Marker> markers_;
 };
 
 }  // namespace libmv
