@@ -25,15 +25,19 @@
 namespace libmv {
 
 /*!
-    Initialize the \link Reconstruction reconstruction \endlink using the first two keyframes.
+    Initialize the \link Reconstruction reconstruction \endlink using two frames.
 
     \a markers should contain all \l Marker markers \endlink belonging to
-       tracks visible in both keyframes.
-    The pose estimation of the camera for these keyframes will be inserted in \a reconstruction.
+    tracks visible in both keyframes. The pose estimation of the camera for
+    these keyframes will be inserted into \a *reconstruction.
 
     \note The two keyframes need to have both enough parallax and enough common tracks
-          for accurate reconstruction.
-    \note the origin of the coordinate system is defined to be the camera of the first keyframe.
+          for accurate reconstruction. At least 8 tracks are suggested.
+    \note The origin of the coordinate system is defined to be the camera of
+          the first keyframe.
+    \note This assumes a calibrated reconstruction, e.g. the markers are
+          already corrected for camera intrinsics and radial distortion.
+    \note This assumes an outlier-free set of markers.
 
     \sa Resect
 */
@@ -41,15 +45,25 @@ bool ReconstructTwoFrames(const std::vector<Marker> &markers,
                           Reconstruction *reconstruction);
 
 /*!
-    Estimate the pose of a new keyframe from a previous keyframe.
+    Estimate the pose of a camera from 2D to 3D correspondences.
+
+    This takes a set of markers visible in one frame (which is the one to
+    resection), such that the markers are also reconstructed in 3D in the
+    reconstruction object, and solves for the pose and orientation of the
+    camera for that frame.
 
     \a markers should contain all \l Marker markers \endlink belonging to
-       tracks visible in both keyframes.
-    \a reconstruction should contain the \l Camera camera \endlink for one keyframe.
-       The camera for the other keyframe will be inserted in \a reconstruction.
+    tracks visible in both keyframes. Each of the tracks associated with the
+    markers must be reconstructed in the \a *reconstruction object.
+
+    \a *reconstruction should contain the 3D points associated with the tracks
+    for the markers present in \a markers.
 
     \note The two keyframes need to have both enough parallax and enough common tracks
           for accurate reconstruction.
+    \note This assumes a calibrated reconstruction, e.g. the markers are
+          already corrected for camera intrinsics and radial distortion.
+    \note This assumes an outlier-free set of markers.
 
     \sa ReconstructTwoFrames
 */
@@ -57,15 +71,21 @@ bool Resect(const std::vector<Marker> &markers,
             Reconstruction *reconstruction);
 
 /*!
-    Estimate the 3D coordinates by intersecting markers between two keyframes.
+    Estimate the 3D coordinates of a track by intersecting rays from images.
+
+    This takes a set of markers, where each marker is for the same track but
+    different images, and reconstructs the 3D position of that track. Each of
+    the frames for which there is a marker for that track must have a
+    corresponding reconstructed camera in \a *reconstruction.
 
     \a markers should contain all \l Marker markers \endlink belonging to
        tracks visible in both keyframes.
     \a reconstruction should contain the cameras for both keyframes.
        The new \l Point points \endlink will be inserted in \a reconstruction.
 
-    \note The two keyframes need to have both enough parallax and enough common tracks
-          for accurate reconstruction.
+    \note This assumes a calibrated reconstruction, e.g. the markers are
+          already corrected for camera intrinsics and radial distortion.
+    \note This assumes an outlier-free set of markers.
 
     \sa Resect
 */
@@ -73,14 +93,21 @@ bool Intersect(const std::vector<Marker> &markers,
                Reconstruction *reconstruction);
 
 /*!
-    Optimize the camera pose estimation and scene 3D coordinates using bundle adjustment.
+    Refine camera poses and 3D coordinates using bundle adjustment.
 
-    \a tracks should contain all markers used in the reconstruction.
-    \a reconstruction should contain the cameras for all processed keyframes.
-    \a reconstruction should contain the points for all processed keyframes.
-       The cameras and the points will be refined in place in \a reconstruction.
+    This routine adjusts all cameras and points in \a *reconstruction. This
+    assumes a full observation for reconstructed tracks; this implies that if
+    there is a reconstructed 3D point (a bundle) for a track, then all markers
+    for that track will be included in the minimization. \a tracks should
+    contain markers used in the initial reconstruction.
 
-    \sa Resect, Intersect
+    The cameras and bundles (3D points) are refined in-place.
+
+    \note This assumes an outlier-free set of markers.
+    \note This assumes a calibrated reconstruction, e.g. the markers are
+          already corrected for camera intrinsics and radial distortion.
+
+    \sa Resect, Intersect, ReconstructTwoFrames
 */
 void Bundle(const Tracks &tracks, Reconstruction *reconstruction);
 
