@@ -51,6 +51,7 @@ class Scene : public QGLWidget {
  public:
   Scene(libmv::Reconstruction* reconstruction, QGLWidget *shareWidget = 0);
   ~Scene();
+  void LoadCOLLADA(QIODevice* file);
   void LoadCameras(QByteArray data);
   void LoadBundles(QByteArray data);
   void LoadObjects(QByteArray data);

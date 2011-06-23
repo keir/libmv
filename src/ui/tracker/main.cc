@@ -265,6 +265,10 @@ void MainWindow::open(QString path) {
   path_ = path;
   setWindowTitle(QString("Tracker - %1").arg(QDir(path).dirName()));
   tracker_->Load(Load("tracks"));
+  foreach(QString path, QDir(path_).entryList(QStringList("*.dae"))) {
+    QFile file(path);
+    scene_->LoadCOLLADA(&file);
+  }
   scene_->LoadCameras(Load("cameras"));
   scene_->LoadBundles(Load("bundles"));
   scene_->LoadObjects(Load("objects"));
@@ -440,7 +444,7 @@ void MainWindow::updateZooms(QVector<int> tracks) {
     // zoom widget is owned by dock ?
   }
   for (int i = zooms_docks_.size(); i < tracks.size(); i++) {
-    QDockWidget* dock = new QDockWidget(QString("Zoom View #%1").arg(tracks[i]));
+    QDockWidget* dock = new QDockWidget(QString("Marker #%1").arg(tracks[i]));
     dock->setObjectName(QString("zoom%1").arg(tracks[i]));
     addDockWidget(Qt::TopDockWidgetArea, dock);
     Zoom* zoom = new Zoom(0, tracker_);

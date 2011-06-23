@@ -20,6 +20,7 @@
 
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/numeric/numeric.h"
+#include "libmv/logging/logging.h"
 
 namespace libmv {
 
@@ -30,6 +31,7 @@ void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
 }
 
 void Reconstruction::InsertCamera(int image, const Mat3 &R, const Vec3 &t) {
+  LG << "InsertCamera" << image << R << t;
   if (image >= cameras_.size()) {
     cameras_.resize(image + 1);
   }
@@ -39,6 +41,7 @@ void Reconstruction::InsertCamera(int image, const Mat3 &R, const Vec3 &t) {
 }
 
 void Reconstruction::InsertPoint(int track, const Vec3 &X) {
+  LG << "InsertPoint" << track << X;
   if (track >= points_.size()) {
     points_.resize(track + 1);
   }
@@ -47,7 +50,10 @@ void Reconstruction::InsertPoint(int track, const Vec3 &X) {
 }
 
 Camera *Reconstruction::CameraForImage(int image) {
-  return (cameras_[image].image == -1) ? NULL : &cameras_[image];
+  if (image < 0 || image >= cameras_.size()) return NULL;
+  Camera* camera = &cameras_[image];
+  if (camera->image == -1) return NULL;
+  return camera;
 }
 
 vector<Camera> Reconstruction::AllCameras() {

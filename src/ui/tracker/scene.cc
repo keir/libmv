@@ -24,6 +24,7 @@
 #include "libmv/base/vector.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 
+#include <QXmlStreamReader>
 #include <QMouseEvent>
 #include <QKeyEvent>
 
@@ -74,6 +75,21 @@ Scene::Scene(libmv::Reconstruction *reconstruction, QGLWidget *shareWidget)
   glInitialize();
 }
 Scene::~Scene() {}
+
+void Scene::LoadCOLLADA(QIODevice* file) {
+  QXmlStreamReader xml(file);
+  for(int nest=0,match=0;!xml.atEnd();) {
+    QXmlStreamReader::TokenType token = xml.readNext();
+    if(token == QXmlStreamReader::EndElement) { nest--; if(match>nest) match=nest; }
+    if(token == QXmlStreamReader::StartElement) {
+      const char* path[] = {"COLLADA","library_animations"};
+      //qDebug()<<xml.name()<<xml.attributes().value("id");
+      // TODO(MatthiasF): implement COLLADA import
+      if(match==nest && xml.name()==path[match] ) match++;
+      nest++;
+    }
+  }
+}
 
 void Scene::LoadCameras(QByteArray data) {
   const Camera *cameras = reinterpret_cast<const Camera *>(data.constData());
@@ -232,15 +248,15 @@ void Scene::upload() {
 void Scene::Render(int w, int h, int image) {
   /// Compute camera projection
   mat4 transform;
-  if (image >= 0) {
+  Camera* camera = reconstruction_->CameraForImage(image);
+  if (camera) {
     // TODO(MatthiasF): match real image projection.
-    Camera camera = *reconstruction_->CameraForImage(image);
     Mat3 K;
     K << calibration_.focal_length, 0, (w-1)/2,
          0, calibration_.focal_length, (h-1)/2,
          0, 0,                         1;
     Mat34 P;
-    libmv::P_From_KRt(K, camera.R, camera.t, &P);
+    libmv::P_From_KRt(K, camera->R, camera->t, &P);
     for (int j = 0 ; j < 4 ; j++) {
       transform(0, j) = P(0, j);
       transform(1, j) = P(1, j);

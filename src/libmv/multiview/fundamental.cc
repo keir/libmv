@@ -97,7 +97,7 @@ double EightPointSolver(const Mat &x1, const Mat &x2, Mat3 *F) {
 
 // HZ 11.1.1 pag.280
 void EnforceFundamentalRank2Constraint(Mat3 *F) {
-  Eigen::JacobiSVD<Mat3> USV(*F);
+  Eigen::JacobiSVD<Mat3> USV(*F, Eigen::ComputeFullU | Eigen::ComputeFullV);
   Vec3 d = USV.singularValues();
   d(2) = 0.0;
   *F = USV.matrixU() * d.asDiagonal() * USV.matrixV().transpose();

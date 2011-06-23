@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <vector>
 
-#include "libmv/logging/logging.h"
 #include "libmv/numeric/numeric.h"
 #include "libmv/simple_pipeline/tracks.h"
 
@@ -35,11 +34,9 @@ void Tracks::Insert(int image, int track, double x, double y) {
         markers_[i].track == track) {
       markers_[i].x = x;
       markers_[i].y = y;
-      LG << "Overwriting marker " << i << " with track " << markers_[i].track;
       return;
     }
   }
-  LG << "Making new marker " << track << " with track " << track;
   Marker marker = { image, track, x, y };
   markers_.push_back(marker);
 }
