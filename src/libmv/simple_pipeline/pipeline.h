@@ -24,15 +24,21 @@
 namespace libmv {
 
 /*!
-    Estimate non-key camera poses and reconstruct scene 3D coordinates using all frames.
+    Estimate camera poses and scene 3D coordinates for all frames and tracks.
 
-    This method should be used once all keyframes have been processed to compute
-    cameras for all frames between the keyframes and to refine 3D reconstruction.
+    This method should be used once there is an initial reconstruction in
+    place, for example by reconstructing from two frames that have a sufficient
+    baseline and number of tracks in common. This function iteratively
+    triangulates points that are visible by cameras that have their pose
+    estimated, then resections (i.e. estimates the pose) of cameras that are
+    not estimated yet that can see triangulated points. This process is
+    repeated until all points and cameras are estimated. Periodically, bundle
+    adjustment is run to ensure a quality reconstruction.
 
-    \a tracks should contain all markers used in the reconstruction.
-    \a reconstruction should contain the cameras for all processed keyframes.
-    \a reconstruction should contain the points for all processed keyframes.
-       Cameras for non-key frames will be added to \a reconstruction.
+    \a tracks should contain markers used in the reconstruction.
+    \a reconstruction should contain at least some 3D points or some estimated
+    cameras. The minimum number of cameras is two (with no 3D points) and the
+    minimum number of 3D points (with no estimated cameras) is 5.
 
     \sa Resect, Intersect, Bundle
 */
