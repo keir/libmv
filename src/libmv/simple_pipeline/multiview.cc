@@ -19,7 +19,10 @@
 // IN THE SOFTWARE.
 
 #include "libmv/base/vector.h"
+#include "libmv/logging/logging.h"
 #include "libmv/multiview/euclidean_resection.h"
+#include "libmv/multiview/resection.h"
+#include "libmv/multiview/projection.h"
 #include "libmv/multiview/fundamental.h"
 #include "libmv/multiview/nviewtriangulation.h"
 #include "libmv/numeric/numeric.h"
@@ -82,22 +85,19 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
 
   // Recover motion between the two images. Since this function assumes a
   // calibrated camera, use the identity for K.
-  Mat3 dR;
-  Vec3 dt;
+  Mat3 R;
+  Vec3 t;
   Mat3 K = Mat3::Identity();
   if (!MotionFromEssentialAndCorrespondence(
-        E, K, x1.col(0), K, x2.col(0), &dR, &dt)) {
+        E, K, x1.col(0), K, x2.col(0), &R, &t)) {
     return false;
   }
 
-  reconstruction->CameraForImage(image1)->image = image1;
-  reconstruction->CameraForImage(image1)->R = Mat3::Identity();
-  reconstruction->CameraForImage(image1)->t = Vec3::Zero();
+  reconstruction->InsertCamera(image1, Mat3::Identity(), Vec3::Zero());
+  reconstruction->InsertCamera(image2, R, t);
 
-  reconstruction->CameraForImage(image2)->image = image2;
-  reconstruction->CameraForImage(image2)->R = dR;
-  reconstruction->CameraForImage(image2)->t = dt;
-
+  LG << "From two frame reconstruction got:\nR:\n" << R
+     << "\nt:\n" << t;
   return true;
 }
 
@@ -115,18 +115,39 @@ bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
     return false;
   }
   Mat2X points_2d = PointMatrixFromMarkers(markers);
-  Mat3X points_3d(2, markers.size());
+  //Mat4X points_3d(4, markers.size());
+  //for (int i = 0; i < markers.size(); i++) {
+    //points_3d.col(i).head<3>() =
+      //reconstruction->PointForTrack(markers[i].track)->X;
+    //points_3d(3, i) = 1.0;
+  //}
+  Mat3X points_3d(3, markers.size());
   for (int i = 0; i < markers.size(); i++) {
     points_3d.col(i) = reconstruction->PointForTrack(markers[i].track)->X;
   }
-  Mat3 R;
+  LG << "Points for intersect:\n" << points_2d;
+
+  Mat3 R, K;
   Vec3 t;
+
+  //Mat34 P;
+  //Mat3 K;
+  //resection::Resection(points_2d, points_3d, &P);
+  //KRt_From_P(P, &K, &R, &t);
+  //LG << "Resection for image " << markers[0].image << " got:\n"
+     //<< "K:\n" << K << "\nR:\n" << R << "\nt:\n" << t;
+
+  // TODO(keir): Figure out why euclidean resection is not working.
   euclidean_resection::EuclideanResection(points_2d, points_3d, &R, &t);
+  LG << "Resection for image " << markers[0].image << " got:\n"
+     << "R:\n" << R << "\nt:\n" << t;
+
+  reconstruction->InsertCamera(markers[0].image, R, t);
   return true;
 }
 
 bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
-  if (markers.size() < 4) {
+  if (markers.size() < 2) {
     return false;
   }
 

@@ -31,7 +31,7 @@ void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
 }
 
 void Reconstruction::InsertCamera(int image, const Mat3 &R, const Vec3 &t) {
-  LG << "InsertCamera" << image << R << t;
+  LG << "InsertCamera " << image << ":\nR:\n"<< R << "\nt:\n" << t;
   if (image >= cameras_.size()) {
     cameras_.resize(image + 1);
   }
@@ -41,7 +41,7 @@ void Reconstruction::InsertCamera(int image, const Mat3 &R, const Vec3 &t) {
 }
 
 void Reconstruction::InsertPoint(int track, const Vec3 &X) {
-  LG << "InsertPoint" << track << X;
+  LG << "InsertPoint " << track << ":\n" << X;
   if (track >= points_.size()) {
     points_.resize(track + 1);
   }

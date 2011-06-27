@@ -18,6 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
+#include "libmv/logging/logging.h"
 #include "libmv/simple_pipeline/multiview.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/simple_pipeline/tracks.h"
@@ -30,14 +31,19 @@ void CompleteReconstruction(const Tracks &tracks,
   int max_image = tracks.MaxImage();
   int num_resects = -1;
   int num_intersects = -1;
+  LG << "Max track: " << max_track;
+  LG << "Max image: " << max_image;
+  LG << "Number of markers: " << tracks.NumMarkers();
   while (num_resects != 0 || num_intersects != 0) {
     // Do all possible intersections.
     num_intersects = 0;
     for (int track = 0; track < max_track; ++track) {
       if (reconstruction->PointForTrack(track)) {
+        LG << "Skipping point: " << track;
         continue;
       }
       vector<Marker> all_markers = tracks.MarkersForTrack(track);
+      LG << "Got " << all_markers.size() << " markers for track " << track;
 
       vector<Marker> reconstructed_markers;
       for (int i = 0; i < all_markers.size(); ++i) {
@@ -45,22 +51,29 @@ void CompleteReconstruction(const Tracks &tracks,
           reconstructed_markers.push_back(all_markers[i]);
         }
       }
+      LG << "Got " << reconstructed_markers.size()
+         << " reconstructed markers for track " << track;
       if (reconstructed_markers.size() >= 2) {
         Intersect(reconstructed_markers, reconstruction);
         num_intersects++;
+        LG << "Ran Intersect() for track " << track;
       }
     }
     if (num_intersects) {
       Bundle(tracks, reconstruction);
+      LG << "Ran Bundle() after intersections.";
     }
+    LG << "Did " << num_intersects << " intersects.";
 
     // Do all possible resections.
     num_resects = 0;
     for (int image = 0; image < max_image; ++image) {
       if (reconstruction->CameraForImage(image)) {
+        LG << "Skipping frame: " << image;
         continue;
       }
       vector<Marker> all_markers = tracks.MarkersInImage(image);
+      LG << "Got " << all_markers.size() << " markers for image " << image;
 
       vector<Marker> reconstructed_markers;
       for (int i = 0; i < all_markers.size(); ++i) {
@@ -68,14 +81,18 @@ void CompleteReconstruction(const Tracks &tracks,
           reconstructed_markers.push_back(all_markers[i]);
         }
       }
-      if (reconstructed_markers.size() >= 4) {
+      LG << "Got " << reconstructed_markers.size()
+         << " reconstructed markers for image " << image;
+      if (reconstructed_markers.size() >= 5) {
         Resect(reconstructed_markers, reconstruction);
         num_resects++;
+        LG << "Ran Resect() for image " << image;
       }
     }
     if (num_resects) {
       Bundle(tracks, reconstruction);
     }
+    LG << "Did " << num_resects << " resects.";
   }
 }
 

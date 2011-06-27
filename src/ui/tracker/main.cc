@@ -24,6 +24,7 @@
 
 #include "libmv/simple_pipeline/multiview.h"
 #include "libmv/simple_pipeline/pipeline.h"
+#include "libmv/simple_pipeline/camera_intrinsics.h"
 
 #include <QApplication>
 #include <QFileDialog>
@@ -265,19 +266,20 @@ void MainWindow::open(QString path) {
   path_ = path;
   setWindowTitle(QString("Tracker - %1").arg(QDir(path).dirName()));
   tracker_->Load(Load("tracks"));
+
   foreach(QString path, QDir(path_).entryList(QStringList("*.dae"))) {
     QFile file(path);
     scene_->LoadCOLLADA(&file);
   }
-  scene_->LoadCameras(Load("cameras"));
-  scene_->LoadBundles(Load("bundles"));
-  scene_->LoadObjects(Load("objects"));
+  //scene_->LoadCameras(Load("cameras"));
+  //scene_->LoadBundles(Load("bundles"));
+  //scene_->LoadObjects(Load("objects"));
   QByteArray data = Load("keyframes");
   const int *keyframes = reinterpret_cast<const int*>(data.constData());
   for (size_t i = 0; i < data.size() / sizeof(int); ++i) {
     keyframes_ << keyframes[i];
   }
-  scene_->upload();
+  //scene_->upload();
   spinbox_.setMaximum(clip_->size() - 1);
   slider_.setMaximum(clip_->size() - 1);
   int frame = QSettings().value("currentFrame", 0).toInt();
@@ -371,28 +373,12 @@ void MainWindow::toggleKeyframe(bool keyframe) {
   if (keyframe) {
     int i = 0;
     for(; i < keyframes_.count(); i++) {
-      if(keyframes_[i] >= current_frame_) {
+      if (keyframes_[i] >= current_frame_) {
         Q_ASSERT(keyframes_[i] != current_frame_);
         break;
       }
     }
     keyframes_.insert(i, current_frame_);
-    if(keyframes_.count()==2) {
-      libmv::ReconstructTwoFrames(
-            tracks_->MarkersForTracksInBothImages(keyframes_[0],keyframes_[1]),
-            reconstruction_);
-      scene_->upload();
-    } else if(keyframes_.count()>2) {
-      // TODO(MatthiasF): do we need to resect and intersect again subsequent frames ?
-      libmv::Resect(
-            tracks_->MarkersForTracksInBothImages(keyframes_[i-1],current_frame_),
-            reconstruction_);
-      libmv::Intersect(
-            tracks_->MarkersForTracksInBothImages(keyframes_[i-1],current_frame_),
-            reconstruction_);
-      libmv::Bundle(*tracks_,reconstruction_);
-      scene_->upload();
-    }
   } else {
     if (keyframes_.contains(current_frame_)) {
       keyframes_.remove(keyframes_.indexOf(current_frame_));
@@ -461,7 +447,28 @@ void MainWindow::updateZooms(QVector<int> tracks) {
 }
 
 void MainWindow::solve() {
-  libmv::CompleteReconstruction(*tracks_,reconstruction_);
+  // Invert the camera intrinsics. Hardcoded calibration for now, yipee!
+  libmv::CameraIntrinsics intrinsics;
+  intrinsics.SetFocalLength(2066.368 / 2.0);
+  intrinsics.set_radial_distortion(0.034, 0.0, 0.0);
+
+  libmv::vector<libmv::Marker> markers = tracks_->AllMarkers();
+  for (int i = 0; i < markers.size(); ++i) {
+    intrinsics.InvertIntrinsics(markers[i].x,
+                                markers[i].y,
+                                &(markers[i].x),
+                                &(markers[i].y));
+  }
+  libmv::Tracks normalized_tracks(markers);
+
+  Q_ASSERT(keyframes_.size() >= 2);
+
+  libmv::vector<libmv::Marker> keyframe_markers =
+    normalized_tracks.MarkersForTracksInBothImages(keyframes_[0],
+                                                   keyframes_[1]);
+
+  libmv::ReconstructTwoFrames(keyframe_markers, reconstruction_);
+  libmv::CompleteReconstruction(*tracks_, reconstruction_);
   scene_->upload();
 }
 

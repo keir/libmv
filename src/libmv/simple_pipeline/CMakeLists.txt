@@ -2,6 +2,7 @@ SET(SIMPLE_PIPELINE_SRC
     multiview.cc
     pipeline.cc
     reconstruction.cc
+    camera_intrinsics.cc
     tracks.cc)
 
 # Define the header files so that they appear in IDEs.

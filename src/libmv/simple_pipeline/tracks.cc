@@ -26,6 +26,8 @@
 
 namespace libmv {
 
+Tracks::Tracks(const vector<Marker> &markers) : markers_(markers) {}
+
 void Tracks::Insert(int image, int track, double x, double y) {
   // TODO(keir): Wow, this is quadratic for repeated insertions. Fix this by
   // adding a smarter data structure like a set<>.
@@ -143,6 +145,10 @@ int Tracks::MaxTrack() const {
     max_track = std::max(markers_[i].track, max_track);
   }
   return max_track;
+}
+
+int Tracks::NumMarkers() const {
+  return markers_.size();
 }
 
 }  // namespace libmv

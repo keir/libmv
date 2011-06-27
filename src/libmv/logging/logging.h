@@ -23,7 +23,7 @@
 
 #include "third_party/glog/src/glog/logging.h"
 
-#define LG DLOG(INFO)
+#define LG LOG(INFO)
 #define V0 LOG(INFO)
 #define V1 LOG(INFO)
 #define V2 LOG(INFO)
