@@ -2,6 +2,7 @@
 SET(MULTIVIEW_SRC projection.cc
                   fundamental.cc
                   triangulation.cc
+                  euclidean_resection.cc
                   conditioning.cc)
 
 # define the header files (make the headers appear in IDEs.)
@@ -9,7 +10,7 @@ FILE(GLOB MULTIVIEW_HDRS *.h)
 
 ADD_LIBRARY(multiview ${MULTIVIEW_SRC} ${MULTIVIEW_HDRS})
 
-TARGET_LINK_LIBRARIES(multiview numeric debug glog)
+TARGET_LINK_LIBRARIES(multiview glog numeric )
 
 # make the name of debug libraries end in _d.
 SET_TARGET_PROPERTIES(multiview PROPERTIES DEBUG_POSTFIX "_d")
