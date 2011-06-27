@@ -28,10 +28,10 @@ namespace libmv {
     Initialize the \link Reconstruction reconstruction \endlink using two frames.
 
     \a markers should contain all \l Marker markers \endlink belonging to
-    tracks visible in both keyframes. The pose estimation of the camera for
-    these keyframes will be inserted into \a *reconstruction.
+    tracks visible in both frames. The pose estimation of the camera for
+    these frames will be inserted into \a *reconstruction.
 
-    \note The two keyframes need to have both enough parallax and enough common tracks
+    \note The two frames need to have both enough parallax and enough common tracks
           for accurate reconstruction. At least 8 tracks are suggested.
     \note The origin of the coordinate system is defined to be the camera of
           the first keyframe.
@@ -52,15 +52,14 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
     reconstruction object, and solves for the pose and orientation of the
     camera for that frame.
 
-    \a markers should contain all \l Marker markers \endlink belonging to
-    tracks visible in both keyframes. Each of the tracks associated with the
-    markers must be reconstructed in the \a *reconstruction object.
+    \a markers should contain \l Marker markers \endlink belonging to tracks
+    visible in the one frame to be resectioned. Each of the tracks associated
+    with the markers must have a corresponding reconstructed 3D position in the
+    \a *reconstruction object.
 
     \a *reconstruction should contain the 3D points associated with the tracks
     for the markers present in \a markers.
 
-    \note The two keyframes need to have both enough parallax and enough common tracks
-          for accurate reconstruction.
     \note This assumes a calibrated reconstruction, e.g. the markers are
           already corrected for camera intrinsics and radial distortion.
     \note This assumes an outlier-free set of markers.
@@ -79,8 +78,8 @@ bool Resect(const vector<Marker> &markers,
     corresponding reconstructed camera in \a *reconstruction.
 
     \a markers should contain all \l Marker markers \endlink belonging to
-       tracks visible in both keyframes.
-    \a reconstruction should contain the cameras for both keyframes.
+       tracks visible in all frames.
+    \a reconstruction should contain the cameras for all frames.
        The new \l Point points \endlink will be inserted in \a reconstruction.
 
     \note This assumes a calibrated reconstruction, e.g. the markers are
