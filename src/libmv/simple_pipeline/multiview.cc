@@ -19,11 +19,12 @@
 // IN THE SOFTWARE.
 
 #include "libmv/base/vector.h"
-#include "libmv/numeric/numeric.h"
+#include "libmv/multiview/euclidean_resection.h"
 #include "libmv/multiview/fundamental.h"
-#include "libmv/simple_pipeline/tracks.h"
-#include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/multiview/nviewtriangulation.h"
+#include "libmv/numeric/numeric.h"
+#include "libmv/simple_pipeline/reconstruction.h"
+#include "libmv/simple_pipeline/tracks.h"
 
 namespace libmv {
 
@@ -37,7 +38,6 @@ void CoordinatesForMarkersInImage(const vector<Marker> &markers,
       coords.push_back(Vec2(marker.x, marker.y));
     }
   }
-  // FIXME: avoid pointless conversions between abstractions
   coordinates->resize(2, coords.size());
   for (int i = 0; i < coords.size(); i++) {
     coordinates->col(i) = coords[i];
@@ -80,7 +80,8 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
   diag << 1, 1, 0;
   Mat3 E = svd.matrixU() * diag.asDiagonal() * svd.matrixV().transpose();
 
-  // Recover motion between the two images
+  // Recover motion between the two images. Since this function assumes a
+  // calibrated camera, use the identity for K.
   Mat3 dR;
   Vec3 dt;
   Mat3 K = Mat3::Identity();
@@ -100,10 +101,27 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
   return true;
 }
 
-bool Resect(const vector<Marker> &markers, Reconstruction */*reconstruction*/) {
-  if (markers.size() < 8) {
+Mat2X PointMatrixFromMarkers(const vector<Marker> &markers) {
+  Mat2X points(2, markers.size());
+  for (int i = 0; i < markers.size(); ++i) {
+    points(0, i) = markers[i].x;
+    points(1, i) = markers[i].y;
+  }
+  return points;
+}
+
+bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
+  if (markers.size() < 5) {
     return false;
   }
+  Mat2X points_2d = PointMatrixFromMarkers(markers);
+  Mat3X points_3d(2, markers.size());
+  for (int i = 0; i < markers.size(); i++) {
+    points_3d.col(i) = reconstruction->PointForTrack(markers[i].track)->X;
+  }
+  Mat3 R;
+  Vec3 t;
+  euclidean_resection::EuclideanResection(points_2d, points_3d, &R, &t);
   return true;
 }
 
@@ -111,59 +129,33 @@ bool Intersect(const vector<Marker> &markers, Reconstruction *reconstruction) {
   if (markers.size() < 4) {
     return false;
   }
-  int image1, image2;
-  GetImagesInMarkers(markers, &image1, &image2);
 
-  vector<Matrix<double, 3, 4> > Ps;
-  {
-    Camera camera = *reconstruction->CameraForImage(image1);
-    Mat3 K;
-    // FIXME: we need calibration data
-    /*K << calibration_.focal_length, 0, (w-1)/2,
-      0, calibration_.focal_length, (h-1)/2,
-      0, 0,                         1;*/
-    K << 1, 0, 0,
-        0, 1, 0,
-        0, 0, 1;
-    Mat34 P;
+  // Compute projective camera matrices for the cameras the intersection is
+  // going to use.
+  Mat3 K = Mat3::Identity();
+  vector<Mat34> cameras;
+  Mat34 P;
+  for (int i = 0; i < markers.size(); ++i) {
+    Camera camera = *reconstruction->CameraForImage(markers[i].image);
     P_From_KRt(K, camera.R, camera.t, &P);
-    Ps.push_back(P);
-  }
-  {
-    Camera camera = *reconstruction->CameraForImage(image2);
-    Mat3 K;
-    // FIXME: we need calibration data
-    /*K << calibration_.focal_length, 0, (w-1)/2,
-      0, calibration_.focal_length, (h-1)/2,
-      0, 0,                         1;*/
-    K << 1, 0, 0,
-        0, 1, 0,
-        0, 0, 1;
-    Mat34 P;
-    P_From_KRt(K, camera.R, camera.t, &P);
-    Ps.push_back(P);
+    cameras.push_back(P);
   }
 
-  // FIXME: the API makes retrieving matching markers quite inconvenient
-  for(int i = 0; i < markers.size(); i++) {
-    Marker a = markers[i];
-    for(int j = 0; j < i; j++) {
-      Marker b = markers[j];
-      if(a.track == b.track) {
-        Matrix<double, 2, Dynamic>  x(2, 2);
-        if(a.image == image1 && b.image == image2) {
-          x.col(0) = Vec2(a.x, a.y);
-          x.col(1) = Vec2(b.x, b.y);
-        } else {
-          x.col(0) = Vec2(b.x, b.y);
-          x.col(1) = Vec2(a.x, a.y);
-        }
-        Matrix<double, 4, 1> X;
-        NViewTriangulate(x, Ps, &X);
-        reconstruction->InsertPoint(a.track, X.row(0).head<3>());
-      }
-    }
+  // Stack the 2D coordinates together as required by NViewTriangulate.
+  Mat2X points(2, markers.size());
+  for (int i = 0; i < markers.size(); ++i) {
+    points(0, i) = markers[i].x;
+    points(1, i) = markers[i].y;
   }
+
+  Vec4 X;
+  NViewTriangulate(points, cameras, &X);
+  X /= X(3);
+
+  Vec3 point = X.head<3>();
+  reconstruction->InsertPoint(markers[0].track, point);
+
+  // TODO(keir): Add proper error checking.
   return true;
 }
 
