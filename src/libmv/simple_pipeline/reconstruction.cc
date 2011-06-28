@@ -50,17 +50,22 @@ void Reconstruction::InsertPoint(int track, const Vec3 &X) {
 }
 
 Camera *Reconstruction::CameraForImage(int image) {
+  return const_cast<Camera *>(
+      static_cast<const Reconstruction *>(this)->CameraForImage(image));
+}
+
+const Camera *Reconstruction::CameraForImage(int image) const {
   if (image < 0 || image >= cameras_.size()) {
     return NULL;
   }
-  Camera *camera = &cameras_[image];
+  const Camera *camera = &cameras_[image];
   if (camera->image == -1) {
     return NULL;
   }
   return camera;
 }
 
-vector<Camera> Reconstruction::AllCameras() {
+vector<Camera> Reconstruction::AllCameras() const {
   vector<Camera> cameras;
   for (int i = 0; i < cameras_.size(); ++i) {
     if (cameras_[i].image != -1) {
@@ -71,17 +76,22 @@ vector<Camera> Reconstruction::AllCameras() {
 }
 
 Point *Reconstruction::PointForTrack(int track) {
+  return const_cast<Point *>(
+      static_cast<const Reconstruction *>(this)->PointForTrack(track));
+}
+
+const Point *Reconstruction::PointForTrack(int track) const {
   if (track < 0 || track >= points_.size()) {
     return NULL;
   }
-  Point *point = &points_[track];
+  const Point *point = &points_[track];
   if (point->track == -1) {
     return NULL;
   }
   return point;
 }
 
-vector<Point> Reconstruction::AllPoints() {
+vector<Point> Reconstruction::AllPoints() const {
   vector<Point> points;
   for (int i = 0; i < points_.size(); ++i) {
     if (points_[i].track != -1) {

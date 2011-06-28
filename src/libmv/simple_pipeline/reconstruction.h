@@ -99,15 +99,17 @@ class Reconstruction {
 
   /// Returns a pointer to the camera corresponding to \a image.
   Camera *CameraForImage(int image);
+  const Camera *CameraForImage(int image) const;
 
   /// Returns all cameras.
-  vector<Camera> AllCameras();
+  vector<Camera> AllCameras() const;
 
   /// Returns a pointer to the point corresponding to \a track.
   Point *PointForTrack(int track);
+  const Point *PointForTrack(int track) const;
 
   /// Returns all points.
-  vector<Point> AllPoints();
+  vector<Point> AllPoints() const;
 
  private:
   vector<Camera> cameras_;
