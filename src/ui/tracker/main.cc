@@ -22,6 +22,7 @@
 #include "ui/tracker/tracker.h"
 #include "ui/tracker/scene.h"
 
+#include "libmv/logging/logging.h"
 #include "libmv/simple_pipeline/multiview.h"
 #include "libmv/simple_pipeline/pipeline.h"
 #include "libmv/simple_pipeline/camera_intrinsics.h"
@@ -449,15 +450,19 @@ void MainWindow::updateZooms(QVector<int> tracks) {
 void MainWindow::solve() {
   // Invert the camera intrinsics. Hardcoded calibration for now, yipee!
   libmv::CameraIntrinsics intrinsics;
+  // The /2.0 is because the sequence was downsized by 2.
   intrinsics.SetFocalLength(2066.368 / 2.0);
-  intrinsics.set_radial_distortion(0.034, 0.0, 0.0);
+  intrinsics.set_principal_point(960 / 2.0, 540 / 2.0);
+  //intrinsics.set_radial_distortion(0.034, 0.0, 0.0);
 
   libmv::vector<libmv::Marker> markers = tracks_->AllMarkers();
   for (int i = 0; i < markers.size(); ++i) {
+    LG << "Image x,y: " << markers[i].x << ", " << markers[i].y;
     intrinsics.InvertIntrinsics(markers[i].x,
                                 markers[i].y,
                                 &(markers[i].x),
                                 &(markers[i].y));
+    LG << "Normalized x,y: " << markers[i].x << ", " << markers[i].y;
   }
   libmv::Tracks normalized_tracks(markers);
 
@@ -468,7 +473,9 @@ void MainWindow::solve() {
                                                    keyframes_[1]);
 
   libmv::ReconstructTwoFrames(keyframe_markers, reconstruction_);
-  libmv::CompleteReconstruction(*tracks_, reconstruction_);
+  libmv::ReprojectionError(*tracks_, *reconstruction_, intrinsics);
+  libmv::CompleteReconstruction(normalized_tracks, reconstruction_);
+  libmv::ReprojectionError(*tracks_, *reconstruction_, intrinsics);
   scene_->upload();
 }
 
