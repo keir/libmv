@@ -32,7 +32,7 @@
 namespace libmv {
 namespace euclidean_resection {
 
-void EuclideanResection(const Mat2X &x_camera, 
+bool EuclideanResection(const Mat2X &x_camera, 
                         const Mat3X &X_world,
                         Mat3 *R, Vec3 *t,
                         ResectionMethod method) {
@@ -41,14 +41,15 @@ void EuclideanResection(const Mat2X &x_camera,
       EuclideanResectionAnsarDaniilidis(x_camera, X_world, R, t);
       break;
     case RESECTION_EPNP:
-      EuclideanResectionEPnP(x_camera, X_world, R, t);      
+      return EuclideanResectionEPnP(x_camera, X_world, R, t);      
       break;
     default:
       LOG(FATAL) << "Unknown resection method.";
   }
+  return false;
 }
 
-void EuclideanResection(const Mat &x_image, 
+bool EuclideanResection(const Mat &x_image, 
                         const Mat3X &X_world,
                         const Mat3 &K,
                         Mat3 *R, Vec3 *t,
@@ -63,7 +64,7 @@ void EuclideanResection(const Mat &x_image,
   } else if (x_image.rows() == 3) {
     HomogeneousToNormalizedCamera(x_image, K, &x_camera);
   }
-  EuclideanResection(x_camera, X_world, R, t, method);
+  return EuclideanResection(x_camera, X_world, R, t, method);
 }
 
 void AbsoluteOrientation(const Mat3X &X,
@@ -431,7 +432,7 @@ void ComputePointsCoordinatesInCameraFrame(
   }    
 }
 
-void EuclideanResectionEPnP(const Mat2X &x_camera,
+bool EuclideanResectionEPnP(const Mat2X &x_camera,
                             const Mat3X &X_world, 
                             Mat3 *R, Vec3 *t) {
   CHECK(x_camera.cols() == X_world.cols());
@@ -643,11 +644,17 @@ void EuclideanResectionEPnP(const Mat2X &x_camera,
   if (rmse(2) < rmse(n)) {
     n = 2;
   }
+  if (rmse(n) == std::numeric_limits<double>::max()) {
+    LOG(ERROR) << "All three possibilities failed. Reporting failure.";
+    return false;
+  }
+
   VLOG(1) << "RMSE for best solution #" << n << ": " << rmse(n);
   *R = Rs[n];
   *t = ts[n];
 
   // TODO(julien): Improve the solutions with non-linear refinement.
+  return true;
 }
 
 } // namespace resection
