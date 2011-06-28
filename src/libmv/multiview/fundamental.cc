@@ -331,7 +331,7 @@ void MotionFromEssential(const Mat3 &E,
   (*Rs)[3] = U_Wt_Vt;
 
   ts->resize(4);
-  (*ts)[0] = U.col(2);
+  (*ts)[0] =  U.col(2);
   (*ts)[1] = -U.col(2);
   (*ts)[2] =  U.col(2);
   (*ts)[3] = -U.col(2);
