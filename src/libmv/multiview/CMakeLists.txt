@@ -70,6 +70,3 @@ MULTIVIEW_TEST(euclidean_kernel)
 MULTIVIEW_TEST(euclidean_parameterization)
 MULTIVIEW_TEST(robust_euclidean)
 MULTIVIEW_TEST(rotation_parameterization)
-
-# TODO(keir): Make tests that depend on generated.cc to use generated sources.
-#ADD_GENERATED_SOURCE(generated.cc generator.py)

@@ -45,5 +45,10 @@ namespace libmv {
 void CompleteReconstruction(const Tracks &tracks,
                             Reconstruction *reconstruction);
 
+class CameraIntrinsics;
+
+double ReprojectionError(const Tracks &image_tracks,
+                         const Reconstruction &reconstruction,
+                         const CameraIntrinsics &intrinsics);
 }  // namespace libmv
 

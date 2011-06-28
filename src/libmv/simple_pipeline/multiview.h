@@ -64,6 +64,8 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
           already corrected for camera intrinsics and radial distortion.
     \note This assumes an outlier-free set of markers.
 
+    \return True if the resection was successful, false otherwise.
+
     \sa ReconstructTwoFrames
 */
 bool Resect(const vector<Marker> &markers,
