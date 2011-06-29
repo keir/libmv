@@ -88,7 +88,7 @@ bool ReconstructTwoFrames(const vector<Marker> &markers,
   double b = svd.singularValues()(1);
   double s = (a + b) / 2.0;
   LG << "Initial reconstruction's rotation is non-euclidean by "
-     << (((a - b) / max(a, b)) * 100) << "%; singular values:"
+     << (((a - b) / std::max(a, b)) * 100) << "%; singular values:"
      << svd.singularValues().transpose();
 
   Vec3 diag;
@@ -156,13 +156,14 @@ struct ResectCostFunction {
 
   // dRt has dR (delta R) encoded as a euler vector in the first 3 parameters,
   // followed by t in the next 3 parameters.
-  Vec2 operator()(const Vec6 &dRt) const {
+  Vec operator()(const Vec6 &dRt) const {
     // Unpack R, t from dRt.
     Mat3 R = RotationFromEulerVector(dRt.head<3>()) * initial_R;
     Vec3 t = dRt.tail<3>();
 
     // Compute the reprojection error for each coordinate.
     Vec residuals(2 * markers.size());
+    residuals.setZero();
     for (int i = 0; i < markers.size(); ++i) {
       const Point &point = *reconstruction.PointForTrack(markers[i].track);
       Vec3 projected = R * point.X + t;
@@ -233,8 +234,9 @@ struct TriangulateCostFunction {
                           const Reconstruction &reconstruction)
     : markers(markers), reconstruction(reconstruction) {}
 
-  Vec2 operator()(const Vec3 &X) const {
+  Vec operator()(const Vec3 &X) const {
     Vec residuals(2 * markers.size());
+    residuals.setZero();
     for (int i = 0; i < markers.size(); ++i) {
       const Camera &camera = *reconstruction.CameraForImage(markers[i].image);
       Vec3 projected = camera.R * X + camera.t;
