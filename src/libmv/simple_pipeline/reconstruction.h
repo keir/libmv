@@ -46,7 +46,6 @@ struct Camera {
   Vec3 t;
 };
 
-
 /*!
     A Point is the 3D location of a track.
 
@@ -56,6 +55,8 @@ struct Camera {
     \sa Reconstruction
 */
 struct Point {
+  Point() : track(-1) {}
+  Point(const Point &p) : track(p.track), X(p.X) {}
   int track;
   Vec3 X;
 };
@@ -72,7 +73,6 @@ struct Point {
 */
 class Reconstruction {
  public:
-
   /*!
       Insert a camera into the set. If there is already a camera for the given
       \a image, the existing camera is replaced. If there is no
