@@ -109,9 +109,10 @@ bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
 
   Mat3 R;
   Vec3 t;
-  if (1 || !euclidean_resection::EuclideanResection(points_2d, points_3d, &R, &t)) {
+  if (0 || !euclidean_resection::EuclideanResection(points_2d, points_3d, &R, &t)) {
     LG << "Resection for image " << markers[0].image << " failed;"
        << " trying fallback projective resection.";
+    return false;
     // Euclidean resection failed. Fall back to projective resection, which is
     // less reliable but better conditioned when there are many points.
     Mat34 P;
@@ -138,7 +139,7 @@ bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
     // Correct to make R a rotation.
     R = svd.matrixU() * svd.matrixV().transpose();
 
-    Vec3 xx = R * points_3d + t;
+    Vec3 xx = R * points_3d.col(0) + t;
     if (xx(2) < 0.0) {
       LG << "Final point is still behind camera...";
     }
