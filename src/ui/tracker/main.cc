@@ -331,7 +331,7 @@ void MainWindow::seek(int frame) {
           tracks_->MarkersForTracksInBothImages(current_frame_,next).size()/2;
       text += QString("| %1 (%2)").arg(next-current_frame_).arg(common);
     }
-    keyframe_label_.setText(text);
+    //keyframe_label_.setText(text);
   }
 }
 
@@ -453,7 +453,7 @@ void MainWindow::solve() {
   // The /2.0 is because the sequence was downsized by 2.
   intrinsics.SetFocalLength(2066.368 / 2.0);
   intrinsics.set_principal_point(960 / 2.0, 540 / 2.0);
-  //intrinsics.set_radial_distortion(0.034, 0.0, 0.0);
+  intrinsics.set_radial_distortion(0.034, 0.0, 0.0);
 
   libmv::vector<libmv::Marker> markers = tracks_->AllMarkers();
   for (int i = 0; i < markers.size(); ++i) {
@@ -473,7 +473,7 @@ void MainWindow::solve() {
                                                    keyframes_[1]);
 
   libmv::ReconstructTwoFrames(keyframe_markers, reconstruction_);
-  libmv::ReprojectionError(*tracks_, *reconstruction_, intrinsics);
+  libmv::Bundle(normalized_tracks, reconstruction_);
   libmv::CompleteReconstruction(normalized_tracks, reconstruction_);
   libmv::ReprojectionError(*tracks_, *reconstruction_, intrinsics);
   scene_->upload();

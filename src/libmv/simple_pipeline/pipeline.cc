@@ -95,7 +95,6 @@ void CompleteReconstruction(const Tracks &tracks,
         }
       }
     }
-    return;
     if (num_resects) {
       Bundle(tracks, reconstruction);
     }
@@ -157,7 +156,7 @@ double ReprojectionError(const Tracks &image_tracks,
            ex,
            ey,
            sqrt(ex*ex + ey*ey));
-    LG << line;
+    //LG << line;
     total_error += sqrt(ex*ex + ey*ey);
   }
   LG << "Skipped " << num_skipped << " markers.";
