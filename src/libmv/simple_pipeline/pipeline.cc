@@ -21,7 +21,9 @@
 #include <cstdio>
 
 #include "libmv/logging/logging.h"
-#include "libmv/simple_pipeline/multiview.h"
+#include "libmv/simple_pipeline/bundle.h"
+#include "libmv/simple_pipeline/intersect.h"
+#include "libmv/simple_pipeline/resect.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/simple_pipeline/tracks.h"
 #include "libmv/simple_pipeline/camera_intrinsics.h"
