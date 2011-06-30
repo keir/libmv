@@ -1,5 +1,8 @@
 SET(SIMPLE_PIPELINE_SRC
-    multiview.cc
+    resect.cc
+    intersect.cc
+    bundle.cc
+    initialize_reconstruction.cc
     pipeline.cc
     reconstruction.cc
     camera_intrinsics.cc

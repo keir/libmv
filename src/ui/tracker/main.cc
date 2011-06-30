@@ -23,7 +23,8 @@
 #include "ui/tracker/scene.h"
 
 #include "libmv/logging/logging.h"
-#include "libmv/simple_pipeline/multiview.h"
+#include "libmv/simple_pipeline/initialize_reconstruction.h"
+#include "libmv/simple_pipeline/bundle.h"
 #include "libmv/simple_pipeline/pipeline.h"
 #include "libmv/simple_pipeline/camera_intrinsics.h"
 
