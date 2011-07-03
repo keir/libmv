@@ -22,7 +22,6 @@
 #include "ui/tracker/tracker.h"
 #include "ui/tracker/scene.h"
 
-#include "libmv/logging/logging.h"
 #include "libmv/simple_pipeline/initialize_reconstruction.h"
 #include "libmv/simple_pipeline/bundle.h"
 #include "libmv/simple_pipeline/pipeline.h"
@@ -63,8 +62,9 @@ QImage Clip::Image(int frame) {
 MainWindow::MainWindow()
   : clip_(new Clip(this)),
     tracks_(new libmv::Tracks()),
+    intrinsics_(new libmv::CameraIntrinsics()),
     reconstruction_(new libmv::Reconstruction()),
-    scene_(new Scene(reconstruction_)),
+    scene_(new Scene(intrinsics_, reconstruction_)),
     tracker_(new Tracker(tracks_, scene_, scene_)),
     current_frame_(-1) {
   setWindowTitle("Tracker");
@@ -223,19 +223,12 @@ void MainWindow::open() {
   dialog.setWindowTitle("Camera Parameters");
   QFormLayout layout(&dialog);
 
-  const int kCount = 11;
+  const int kCount = 4;
   const Parameter parameters[kCount] = {
-    {"Focal Length",              "px", 0,  FLT_MAX,       1               },
+    {"Focal Length",              "px", 0,  FLT_MAX,       size.width()*2  },
     {"Principal Point (X)",       "px", 0,  size.width(),  size.width()/2  },
     {"Principal Point (Y)",       "px", 0,  size.height(), size.height()/2 },
-    {"Skew Factor",               "",   -1, 1,             0               },
-    {"1st Radial Distortion",     "",   -1, 1,             0               },
-    {"2nd Radial Distortion",     "",   -1, 1,             0               },
-    {"3rd Radial Distortion",     "",   -1, 1,             0               },
-    {"4th Radial Distortion",     "",   -1, 1,             0               },
-    {"5th Radial Distortion",     "",   -1, 1,             0               },
-    {"1st Tangential Distortion", "",   -1, 1,             0               },
-    {"2nd Tangential Distortion", "",   -1, 1,             0               },
+    {"1st Radial Distortion",     "",  -1,  1,             0               },
   };
   QDoubleSpinBox spinbox[kCount];
   QByteArray data = Load("settings");
@@ -258,7 +251,9 @@ void MainWindow::open() {
     values[i] = spinbox[i].value();
   }
   Save("settings", data);
-  scene_->LoadCalibration(data);
+  intrinsics_->SetFocalLength(values[0]);
+  intrinsics_->set_principal_point(values[1],values[2]);
+  intrinsics_->set_radial_distortion(values[3], 0, 0);
 }
 
 void MainWindow::open(QString path) {
@@ -449,21 +444,13 @@ void MainWindow::updateZooms(QVector<int> tracks) {
 }
 
 void MainWindow::solve() {
-  // Invert the camera intrinsics. Hardcoded calibration for now, yipee!
-  libmv::CameraIntrinsics intrinsics;
-  // The /2.0 is because the sequence was downsized by 2.
-  intrinsics.SetFocalLength(2066.368 / 2.0);
-  intrinsics.set_principal_point(960 / 2.0, 540 / 2.0);
-  intrinsics.set_radial_distortion(0.034, 0.0, 0.0);
-
+  // Invert the camera intrinsics.
   libmv::vector<libmv::Marker> markers = tracks_->AllMarkers();
   for (int i = 0; i < markers.size(); ++i) {
-    LG << "Image x,y: " << markers[i].x << ", " << markers[i].y;
-    intrinsics.InvertIntrinsics(markers[i].x,
+    intrinsics_->InvertIntrinsics(markers[i].x,
                                 markers[i].y,
                                 &(markers[i].x),
                                 &(markers[i].y));
-    LG << "Normalized x,y: " << markers[i].x << ", " << markers[i].y;
   }
   libmv::Tracks normalized_tracks(markers);
 
@@ -476,7 +463,7 @@ void MainWindow::solve() {
   libmv::ReconstructTwoFrames(keyframe_markers, reconstruction_);
   libmv::Bundle(normalized_tracks, reconstruction_);
   libmv::CompleteReconstruction(normalized_tracks, reconstruction_);
-  libmv::ReprojectionError(*tracks_, *reconstruction_, intrinsics);
+  libmv::ReprojectionError(*tracks_, *reconstruction_, *intrinsics_);
   scene_->upload();
 }
 

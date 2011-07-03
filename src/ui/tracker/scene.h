@@ -28,6 +28,7 @@
 namespace libmv {
 class Point;
 class Camera;
+class CameraIntrinsics;
 class Reconstruction;
 }  // namespace libmv
 
@@ -38,29 +39,20 @@ struct Object {
                 vec3* min, vec3* max) const;
 };
 
-struct Calibration {
-  float focal_length;
-  float principal_point[2];
-  float skew_factor;
-  float radial_distortion[5];
-  float tangential_distortion[2];
-};
-
 class Scene : public QGLWidget {
   Q_OBJECT
  public:
-  Scene(libmv::Reconstruction* reconstruction, QGLWidget *shareWidget = 0);
+  Scene(libmv::CameraIntrinsics* intrinsics, libmv::Reconstruction* reconstruction, QGLWidget *shareWidget = 0);
   ~Scene();
   void LoadCOLLADA(QIODevice* file);
   void LoadCameras(QByteArray data);
   void LoadBundles(QByteArray data);
   void LoadObjects(QByteArray data);
-  void LoadCalibration(QByteArray data);
   QByteArray SaveCameras();
   QByteArray SaveBundles();
   QByteArray SaveObjects();
   void SetImage(int image);
-  void Render(int w, int h, int image);
+  void Render(int w, int h, int image = -1);
 
  public slots:
   void select(QVector<int>);
@@ -87,8 +79,8 @@ class Scene : public QGLWidget {
   void DrawCamera(const libmv::Camera& camera, QVector<vec3> *lines);
   void DrawObject(const Object& object, QVector<vec3> *quads);
 
+  libmv::CameraIntrinsics* intrinsics_;
   libmv::Reconstruction* reconstruction_;
-  Calibration calibration_;
   QVector<Object> objects_;
   GLBuffer bundles_;
   GLBuffer cameras_;

@@ -38,6 +38,11 @@ class CameraIntrinsics {
   double      principal_point_y() const { return K_(1, 2);      }
   int         image_width()       const { return image_width_;  }
   int         image_height()      const { return image_height_; }
+  double      k1()                const { return k1_; }
+  double      k2()                const { return k2_; }
+  double      k3()                const { return k3_; }
+  double      p1()                const { return p1_; }
+  double      p2()                const { return p2_; }
 
   /// Set both x and y focal length in pixels.
   void SetFocalLength(double focal) {
