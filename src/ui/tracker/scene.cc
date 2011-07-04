@@ -23,6 +23,7 @@
 
 #include "libmv/base/vector.h"
 #include "libmv/simple_pipeline/reconstruction.h"
+#include "libmv/multiview/projection.h"
 
 #include <QXmlStreamReader>
 #include <QMouseEvent>
