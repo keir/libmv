@@ -22,8 +22,9 @@
 #include "ui/tracker/gl.h"
 
 #include "libmv/base/vector.h"
-#include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/multiview/projection.h"
+#include "libmv/simple_pipeline/camera_intrinsics.h"
+#include "libmv/simple_pipeline/reconstruction.h"
 
 #include <QXmlStreamReader>
 #include <QMouseEvent>
@@ -65,9 +66,9 @@ QDataStream& operator<<(QDataStream& s, const Object& v) {
   return s << v.transform << v.tracks;
 }
 
-Scene::Scene(libmv::Reconstruction *reconstruction, QGLWidget *shareWidget)
+Scene::Scene(libmv::CameraIntrinsics* intrinsics, libmv::Reconstruction *reconstruction, QGLWidget *shareWidget)
   : QGLWidget(QGLFormat(QGL::SampleBuffers), 0, shareWidget),
-    reconstruction_(reconstruction),
+    intrinsics_(intrinsics), reconstruction_(reconstruction),
     grab_(0), pitch_(PI/2), yaw_(0), speed_(1), walk_(0), strafe_(0), jump_(0),
     current_image_(-1), active_object_(0) {
   setAutoFillBackground(false);
@@ -111,10 +112,6 @@ void Scene::LoadBundles(QByteArray data) {
 void Scene::LoadObjects(QByteArray data) {
   QDataStream stream(data);
   stream >> objects_;
-}
-
-void Scene::LoadCalibration(QByteArray data) {
-  calibration_ = *reinterpret_cast<const Calibration*>(data.constData());
 }
 
 QByteArray Scene::SaveCameras() {
@@ -251,13 +248,8 @@ void Scene::Render(int w, int h, int image) {
   mat4 transform;
   Camera* camera = reconstruction_->CameraForImage(image);
   if (camera) {
-    // TODO(MatthiasF): match real image projection.
-    Mat3 K;
-    K << calibration_.focal_length, 0, (w-1)/2,
-         0, calibration_.focal_length, (h-1)/2,
-         0, 0,                         1;
     Mat34 P;
-    libmv::P_From_KRt(K, camera->R, camera->t, &P);
+    libmv::P_From_KRt(intrinsics_->K(), camera->R, camera->t, &P);
     for (int j = 0 ; j < 4 ; j++) {
       transform(0, j) = P(0, j);
       transform(1, j) = P(1, j);
@@ -285,7 +277,7 @@ void Scene::Render(int w, int h, int image) {
     distort_bundle_shader.bind();
     distort_bundle_shader["transform"] = transform;
     distort_bundle_shader["center"] = vec2(0, 0);
-    distort_bundle_shader["K1"] = calibration_.radial_distortion[0];
+    distort_bundle_shader["K1"] = intrinsics_->k1();
     bundles_.bind();
     bundles_.bindAttribute(&distort_bundle_shader, "position", 3);
     bundles_.draw();
@@ -330,7 +322,7 @@ void Scene::Render(int w, int h, int image) {
 
 void Scene::paintGL() {
   glBindWindow(width(), height());
-  Render(width(), height(), -1);
+  Render(width(), height());
 }
 
 void Scene::keyPressEvent(QKeyEvent* e) {
@@ -475,7 +467,7 @@ void Scene::timerEvent(QTimerEvent* /*event*/) {
   view.rotateX(pitch_);
   velocity_ += view*vec3(strafe_*speed_, 0, -walk_*speed_)
       + vec3(0, 0, jump_*speed_);
-  velocity_ *= 31.0/32;
+  velocity_ *= 3.0/4;
   position_ += velocity_;
   if ( length(velocity_) < 0.01 ) timer_.stop();
   update();

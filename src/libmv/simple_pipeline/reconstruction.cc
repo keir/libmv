@@ -24,12 +24,6 @@
 
 namespace libmv {
 
-void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P) {
-  P->block<3, 3>(0, 0) = R;
-  P->col(3) = t;
-  (*P) = K * (*P);
-}
-
 void Reconstruction::InsertCamera(int image, const Mat3 &R, const Vec3 &t) {
   LG << "InsertCamera " << image << ":\nR:\n"<< R << "\nt:\n" << t;
   if (image >= cameras_.size()) {

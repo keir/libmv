@@ -62,7 +62,7 @@ void glInitialize() {
 void GLUniform::operator=(int v) {
   if (id >= 0) glUniform1i(id, v);
 }
-void GLUniform::operator=(float v) {
+void GLUniform::operator=(double v) {
   if (id >= 0) glUniform1f(id, v);
 }
 void GLUniform::operator=(vec2 v) {

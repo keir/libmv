@@ -274,7 +274,7 @@ inline bool operator !=(mat4 a, mat4 b) {
 struct GLUniform {
   explicit GLUniform(int id) : id(id) {}
   void operator=(int);
-  void operator=(float);
+  void operator=(double);
   void operator=(vec2);
   void operator=(vec3);
   void operator=(vec4);

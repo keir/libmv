@@ -31,6 +31,7 @@
 namespace libmv {
 class Tracks;
 class Reconstruction;
+class CameraIntrinsics;
 }  // namespace libmv
 
 class Tracker;
@@ -78,6 +79,7 @@ class MainWindow : public QMainWindow {
   Clip *clip_;
   libmv::Tracks* tracks_;
   QVector<int> keyframes_;
+  libmv::CameraIntrinsics* intrinsics_;
   libmv::Reconstruction* reconstruction_;
 
   Scene *scene_;
