@@ -26,8 +26,6 @@
 
 namespace libmv {
 
-void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P);
-
 /*!
     A Camera is the location and rotation of the camera viewing \a image.
 
@@ -86,9 +84,9 @@ class Reconstruction {
   void InsertCamera(int image, const Mat3 &R, const Vec3 &t);
 
   /*!
-      Insert a point into the set. If there is already a point for the given
-      \a track, the existing point is replaced. If there is no
-      point for the given \a track, a new one is added.
+      Insert a point into the reconstruction. If there is already a point for
+      the given \a track, the existing point is replaced. If there is no point
+      for the given \a track, a new one is added.
 
       \a track is the key used to retrieve the points with the
       other methods in this class.
