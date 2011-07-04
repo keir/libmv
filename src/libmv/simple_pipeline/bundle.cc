@@ -24,15 +24,15 @@
 
 #include "libmv/base/vector.h"
 #include "libmv/logging/logging.h"
-#include "libmv/multiview/projection.h"
 #include "libmv/multiview/fundamental.h"
+#include "libmv/multiview/projection.h"
 #include "libmv/numeric/numeric.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/simple_pipeline/tracks.h"
+#include "third_party/ssba/Geometry/v3d_cameramatrix.h"
+#include "third_party/ssba/Geometry/v3d_metricbundle.h"
 #include "third_party/ssba/Math/v3d_linear.h"
 #include "third_party/ssba/Math/v3d_linear_utils.h"
-#include "third_party/ssba/Geometry/v3d_metricbundle.h"
-#include "third_party/ssba/Geometry/v3d_cameramatrix.h"
 
 namespace libmv {
 
