@@ -26,8 +26,6 @@
 
 namespace libmv {
 
-void P_From_KRt(const Mat3 &K, const Mat3 &R, const Vec3 &t, Mat34 *P);
-
 /*!
     A Camera is the location and rotation of the camera viewing \a image.
 

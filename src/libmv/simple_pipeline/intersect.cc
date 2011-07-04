@@ -20,6 +20,7 @@
 
 #include "libmv/base/vector.h"
 #include "libmv/logging/logging.h"
+#include "libmv/multiview/projection.h"
 #include "libmv/multiview/triangulation.h"
 #include "libmv/multiview/nviewtriangulation.h"
 #include "libmv/numeric/numeric.h"
