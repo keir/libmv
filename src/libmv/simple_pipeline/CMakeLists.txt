@@ -6,7 +6,9 @@ SET(SIMPLE_PIPELINE_SRC
     pipeline.cc
     reconstruction.cc
     camera_intrinsics.cc
-    tracks.cc)
+    tracks.cc
+    uncalibrated_reconstructor.cc
+    autocalibrate.cc)
 
 # Define the header files so that they appear in IDEs.
 FILE(GLOB SIMPLE_PIPELINE_HDRS *.h)

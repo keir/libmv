@@ -26,23 +26,24 @@
 #include "ui/tracker/gl.h"
 
 namespace libmv {
-class Point;
-class Camera;
 class CameraIntrinsics;
-class Reconstruction;
+class EuclideanCamera;
+class EuclideanPoint;
+class EuclideanReconstruction;
 }  // namespace libmv
 
 struct Object {
   mat4 transform;
   QVector<int> tracks;
-  void position(libmv::Reconstruction* reconstruction,
+  void position(libmv::EuclideanReconstruction* reconstruction,
                 vec3* min, vec3* max) const;
 };
 
 class Scene : public QGLWidget {
   Q_OBJECT
  public:
-  Scene(libmv::CameraIntrinsics* intrinsics, libmv::Reconstruction* reconstruction, QGLWidget *shareWidget = 0);
+  Scene(libmv::CameraIntrinsics* intrinsics,
+        libmv::EuclideanReconstruction* reconstruction, QGLWidget *shareWidget = 0);
   ~Scene();
   void LoadCOLLADA(QIODevice* file);
   void LoadCameras(QByteArray data);
@@ -75,12 +76,12 @@ class Scene : public QGLWidget {
   void timerEvent(QTimerEvent*);
 
  private:
-  void DrawPoint(const libmv::Point& point, QVector<vec3> *points);
-  void DrawCamera(const libmv::Camera& camera, QVector<vec3> *lines);
+  void DrawPoint(const libmv::EuclideanPoint& point, QVector<vec3> *points);
+  void DrawCamera(const libmv::EuclideanCamera& camera, QVector<vec3> *lines);
   void DrawObject(const Object& object, QVector<vec3> *quads);
 
   libmv::CameraIntrinsics* intrinsics_;
-  libmv::Reconstruction* reconstruction_;
+  libmv::EuclideanReconstruction* reconstruction_;
   QVector<Object> objects_;
   GLBuffer bundles_;
   GLBuffer cameras_;

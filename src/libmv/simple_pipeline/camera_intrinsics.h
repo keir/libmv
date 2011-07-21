@@ -44,6 +44,11 @@ class CameraIntrinsics {
   double      p1()                const { return p1_; }
   double      p2()                const { return p2_; }
 
+  /// Set the entire calibration matrix at once.
+  void SetK(const Mat3 new_k) {
+    K_ = new_k;
+  }
+
   /// Set both x and y focal length in pixels.
   void SetFocalLength(double focal) {
     K_(0, 0) = K_(1, 1) = focal;

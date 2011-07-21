@@ -57,14 +57,14 @@ Mat3 RotationFromEulerVector(Vec3 euler_vector) {
 // to avoid issues with the rotation representation. R' is derived from a
 // euler vector encoding the rotation in 3 parameters; the direction is the
 // axis to rotate around and the magnitude is the amount of the rotation.
-struct ResectCostFunction {
+struct EuclideanResectCostFunction {
  public:
   typedef Vec  FMatrixType;
   typedef Vec6 XMatrixType;
 
-  ResectCostFunction(const vector<Marker> &markers,
-                     const Reconstruction &reconstruction,
-                     const Mat3 initial_R)
+  EuclideanResectCostFunction(const vector<Marker> &markers,
+                              const EuclideanReconstruction &reconstruction,
+                              const Mat3 initial_R)
     : markers(markers),
       reconstruction(reconstruction),
       initial_R(initial_R) {}
@@ -80,7 +80,8 @@ struct ResectCostFunction {
     Vec residuals(2 * markers.size());
     residuals.setZero();
     for (int i = 0; i < markers.size(); ++i) {
-      const Point &point = *reconstruction.PointForTrack(markers[i].track);
+      const EuclideanPoint &point =
+          *reconstruction.PointForTrack(markers[i].track);
       Vec3 projected = R * point.X + t;
       projected /= projected(2);
       residuals[2*i + 0] = projected(0) - markers[i].x;
@@ -90,13 +91,14 @@ struct ResectCostFunction {
   }
 
   const vector<Marker> &markers;
-  const Reconstruction &reconstruction;
+  const EuclideanReconstruction &reconstruction;
   const Mat3 &initial_R;
 };
 
 }  // namespace
 
-bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
+bool EuclideanResect(const vector<Marker> &markers,
+                     EuclideanReconstruction *reconstruction) {
   if (markers.size() < 5) {
     return false;
   }
@@ -147,10 +149,10 @@ bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
   }
 
   // Refine the result.
-  typedef LevenbergMarquardt<ResectCostFunction> Solver;
+  typedef LevenbergMarquardt<EuclideanResectCostFunction> Solver;
 
   // Give the cost our initial guess for R.
-  ResectCostFunction resect_cost(markers, *reconstruction, R);
+  EuclideanResectCostFunction resect_cost(markers, *reconstruction, R);
 
   // Encode the initial parameters: start with zero delta rotation, and the
   // guess for t obtained from resection.
@@ -174,4 +176,93 @@ bool Resect(const vector<Marker> &markers, Reconstruction *reconstruction) {
   return true;
 }
 
+namespace {
+
+// Directly parameterize the projection matrix, P, which is a 12 parameter
+// homogeneous entry. In theory P should be parameterized with only 11
+// parametetrs, but in practice it works fine to let the extra degree of
+// freedom drift.
+struct ProjectiveResectCostFunction {
+ public:
+  typedef Vec  FMatrixType;
+  typedef Vec12 XMatrixType;
+
+  ProjectiveResectCostFunction(const vector<Marker> &markers,
+                               const ProjectiveReconstruction &reconstruction)
+    : markers(markers),
+      reconstruction(reconstruction) {}
+
+  Vec operator()(const Vec12 &vector_P) const {
+    // Unpack P from vector_P.
+    Map<const Mat34> P(vector_P.data(), 3, 4);
+
+    // Compute the reprojection error for each coordinate.
+    Vec residuals(2 * markers.size());
+    residuals.setZero();
+    for (int i = 0; i < markers.size(); ++i) {
+      const ProjectivePoint &point =
+          *reconstruction.PointForTrack(markers[i].track);
+      Vec3 projected = P * point.X;
+      projected /= projected(2);
+      residuals[2*i + 0] = projected(0) - markers[i].x;
+      residuals[2*i + 1] = projected(1) - markers[i].y;
+    }
+    return residuals;
+  }
+
+  const vector<Marker> &markers;
+  const ProjectiveReconstruction &reconstruction;
+};
+
+}  // namespace
+
+bool ProjectiveResect(const vector<Marker> &markers,
+                      ProjectiveReconstruction *reconstruction) {
+  if (markers.size() < 5) {
+    return false;
+  }
+
+  // Stack the homogeneous 3D points as the columns of a matrix.
+  Mat2X points_2d = PointMatrixFromMarkers(markers);
+  Mat4X points_3d_homogeneous(4, markers.size());
+  for (int i = 0; i < markers.size(); i++) {
+    points_3d_homogeneous.col(i) =
+        reconstruction->PointForTrack(markers[i].track)->X;
+  }
+  LG << "Points for resect:\n" << points_2d;
+
+  // Resection the point.
+  Mat34 P;
+  resection::Resection(points_2d, points_3d_homogeneous, &P);
+
+  // Flip the sign of P if necessary to keep the point in front of the camera.
+  if ((P * points_3d_homogeneous.col(0))(2) < 0) {
+    LG << "Point behind camera; switch sign.";
+    P = -P;
+  }
+
+  // TODO(keir): Check if error is horrible and fail in that case.
+
+  // Refine the resulting projection matrix using geometric error.
+  typedef LevenbergMarquardt<ProjectiveResectCostFunction> Solver;
+
+  ProjectiveResectCostFunction resect_cost(markers, *reconstruction);
+
+  // Pack the initial P matrix into a size-12 vector..
+  Vec12 vector_P = Map<Vec12>(P.data());
+
+  Solver solver(resect_cost);
+
+  Solver::SolverParameters params;
+  Solver::Results results = solver.minimize(params, &vector_P);
+  // TODO(keir): Check results to ensure clean termination.
+
+  // Unpack the projection matrix.
+  P = Map<Mat34>(vector_P.data(), 3, 4);
+
+  LG << "Resection for image " << markers[0].image << " got:\n"
+     << "P:\n" << P;
+  reconstruction->InsertCamera(markers[0].image, P);
+  return true;
+}
 }  // namespace libmv

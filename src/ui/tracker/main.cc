@@ -22,9 +22,11 @@
 #include "ui/tracker/tracker.h"
 #include "ui/tracker/scene.h"
 
+#include "libmv/tools/tool.h"
 #include "libmv/simple_pipeline/initialize_reconstruction.h"
 #include "libmv/simple_pipeline/bundle.h"
 #include "libmv/simple_pipeline/pipeline.h"
+#include "libmv/simple_pipeline/uncalibrated_reconstructor.h"
 #include "libmv/simple_pipeline/camera_intrinsics.h"
 
 #include <QApplication>
@@ -63,7 +65,7 @@ MainWindow::MainWindow()
   : clip_(new Clip(this)),
     tracks_(new libmv::Tracks()),
     intrinsics_(new libmv::CameraIntrinsics()),
-    reconstruction_(new libmv::Reconstruction()),
+    reconstruction_(new libmv::EuclideanReconstruction()),
     scene_(new Scene(intrinsics_, reconstruction_)),
     tracker_(new Tracker(tracks_, scene_, scene_)),
     current_frame_(-1) {
@@ -445,6 +447,7 @@ void MainWindow::updateZooms(QVector<int> tracks) {
 
 void MainWindow::solve() {
   // Invert the camera intrinsics.
+  /*
   libmv::vector<libmv::Marker> markers = tracks_->AllMarkers();
   for (int i = 0; i < markers.size(); ++i) {
     intrinsics_->InvertIntrinsics(markers[i].x,
@@ -464,10 +467,21 @@ void MainWindow::solve() {
   libmv::Bundle(normalized_tracks, reconstruction_);
   libmv::CompleteReconstruction(normalized_tracks, reconstruction_);
   libmv::ReprojectionError(*tracks_, *reconstruction_, *intrinsics_);
+  */
+  QSize size = clip_->Image(0).size();
+  libmv::UncalibratedReconstructor reconstructor(size.width(),
+                                                 size.height(),
+                                                 keyframes_[0],
+                                                 keyframes_[1],
+                                                 *tracks_);
+  *reconstruction_ = reconstructor.euclidean_reconstruction();
+
+  libmv::EuclideanReprojectionError(*tracks_, *reconstruction_, *intrinsics_);
   scene_->upload();
 }
 
 int main(int argc, char *argv[]) {
+  libmv::Init("", &argc, &argv);
   QApplication app(argc, argv);
   app.setOrganizationName("libmv");
   app.setApplicationName("tracker");

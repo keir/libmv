@@ -30,7 +30,7 @@
 
 namespace libmv {
 class Tracks;
-class Reconstruction;
+class EuclideanReconstruction;
 class CameraIntrinsics;
 }  // namespace libmv
 
@@ -80,7 +80,7 @@ class MainWindow : public QMainWindow {
   libmv::Tracks* tracks_;
   QVector<int> keyframes_;
   libmv::CameraIntrinsics* intrinsics_;
-  libmv::Reconstruction* reconstruction_;
+  libmv::EuclideanReconstruction* reconstruction_;
 
   Scene *scene_;
   Tracker *tracker_;

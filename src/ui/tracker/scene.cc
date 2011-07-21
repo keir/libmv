@@ -31,18 +31,18 @@
 #include <QKeyEvent>
 
 using libmv::vector;
-using libmv::Camera;
-using libmv::Point;
+using libmv::EuclideanCamera;
+using libmv::EuclideanPoint;
 using libmv::Vec3;
 using libmv::Mat3;
 using libmv::Mat34;
 
-void Object::position(libmv::Reconstruction* reconstruction,
+void Object::position(libmv::EuclideanReconstruction* reconstruction,
                       vec3* min, vec3* max) const {
   vec3 mean;
   if (!tracks.isEmpty()) {
     foreach (int track, tracks) {
-      Point point = *reconstruction->PointForTrack(track);
+      EuclideanPoint point = *reconstruction->PointForTrack(track);
       mean += vec3(point.X.x(), point.X.y(), point.X.z());
     }
     mean /= tracks.count();
@@ -66,7 +66,9 @@ QDataStream& operator<<(QDataStream& s, const Object& v) {
   return s << v.transform << v.tracks;
 }
 
-Scene::Scene(libmv::CameraIntrinsics* intrinsics, libmv::Reconstruction *reconstruction, QGLWidget *shareWidget)
+Scene::Scene(libmv::CameraIntrinsics* intrinsics,
+             libmv::EuclideanReconstruction *reconstruction,
+             QGLWidget *shareWidget)
   : QGLWidget(QGLFormat(QGL::SampleBuffers), 0, shareWidget),
     intrinsics_(intrinsics), reconstruction_(reconstruction),
     grab_(0), pitch_(PI/2), yaw_(0), speed_(1), walk_(0), strafe_(0), jump_(0),
@@ -94,17 +96,19 @@ void Scene::LoadCOLLADA(QIODevice* file) {
 }
 
 void Scene::LoadCameras(QByteArray data) {
-  const Camera *cameras = reinterpret_cast<const Camera *>(data.constData());
-  for (size_t i = 0; i < data.size() / sizeof(Camera); ++i) {
-    Camera camera = cameras[i];
+  const EuclideanCamera *cameras =
+      reinterpret_cast<const EuclideanCamera *>(data.constData());
+  for (size_t i = 0; i < data.size() / sizeof(EuclideanCamera); ++i) {
+    EuclideanCamera camera = cameras[i];
     reconstruction_->InsertCamera(camera.image, camera.R, camera.t);
   }
 }
 
 void Scene::LoadBundles(QByteArray data) {
-  const Point *points = reinterpret_cast<const Point *>(data.constData());
-  for (size_t i = 0; i < data.size() / sizeof(Point); ++i) {
-    Point point = points[i];
+  const EuclideanPoint *points =
+      reinterpret_cast<const EuclideanPoint *>(data.constData());
+  for (size_t i = 0; i < data.size() / sizeof(EuclideanPoint); ++i) {
+    EuclideanPoint point = points[i];
     reconstruction_->InsertPoint(point.track, point.X);
   }
 }
@@ -115,15 +119,15 @@ void Scene::LoadObjects(QByteArray data) {
 }
 
 QByteArray Scene::SaveCameras() {
-  vector<Camera> cameras = reconstruction_->AllCameras();
+  vector<EuclideanCamera> cameras = reconstruction_->AllCameras();
   return QByteArray(reinterpret_cast<char *>(cameras.data()),
-                    cameras.size() * sizeof(Camera));
+                    cameras.size() * sizeof(EuclideanCamera));
 }
 
 QByteArray Scene::SaveBundles() {
- vector<Point> points = reconstruction_->AllPoints();
+ vector<EuclideanPoint> points = reconstruction_->AllPoints();
  return QByteArray(reinterpret_cast<char *>(points.data()),
-                   points.size() * sizeof(Point));
+                   points.size() * sizeof(EuclideanPoint));
 }
 
 QByteArray Scene::SaveObjects() {
@@ -158,11 +162,11 @@ void Scene::link() {
   }
 }
 
-void Scene::DrawPoint(const Point& point, QVector<vec3>* points) {
+void Scene::DrawPoint(const EuclideanPoint& point, QVector<vec3>* points) {
   *points << vec3(point.X.x(), point.X.y(), point.X.z());
 }
 
-void Scene::DrawCamera(const Camera& camera, QVector<vec3>* lines) {
+void Scene::DrawCamera(const EuclideanCamera& camera, QVector<vec3>* lines) {
   mat4 rotation;
   for (int i = 0 ; i < 3 ; i++) for (int j = 0 ; j < 3 ; j++) {
     rotation(i, j) = camera.R(i, j);
@@ -196,15 +200,15 @@ void Scene::DrawObject(const Object& object, QVector<vec3> *quads) {
 }
 
 void Scene::upload() {
-  vector<Point> all_points = reconstruction_->AllPoints();
+  vector<EuclideanPoint> all_points = reconstruction_->AllPoints();
   QVector<vec3> points;
   points.reserve(all_points.size());
   for (int i = 0; i < all_points.size(); i++) {
-    const Point &point = all_points[i];
+    const EuclideanPoint &point = all_points[i];
     DrawPoint(point, &points);
   }
   foreach (int track, selected_tracks_) {
-    Point point = *reconstruction_->PointForTrack(track);
+    EuclideanPoint point = *reconstruction_->PointForTrack(track);
     DrawPoint(point, &points);
     DrawPoint(point, &points);
     DrawPoint(point, &points);
@@ -212,11 +216,11 @@ void Scene::upload() {
   bundles_.primitiveType = 1;
   bundles_.upload(points.constData(), points.count(), sizeof(vec3));
 
-  vector<Camera> all_cameras = reconstruction_->AllCameras();
+  vector<EuclideanCamera> all_cameras = reconstruction_->AllCameras();
   QVector<vec3> lines;
   lines.reserve(all_cameras.size()*16);
   for (int i = 0; i < all_cameras.size(); i++) {
-    const Camera &camera = all_cameras[i];
+    const EuclideanCamera &camera = all_cameras[i];
     DrawCamera(camera, &lines);
   }
   if (current_image_ >= 0) {
@@ -246,7 +250,7 @@ void Scene::upload() {
 void Scene::Render(int w, int h, int image) {
   /// Compute camera projection
   mat4 transform;
-  Camera* camera = reconstruction_->CameraForImage(image);
+  EuclideanCamera *camera = reconstruction_->CameraForImage(image);
   if (camera) {
     Mat34 P;
     libmv::P_From_KRt(intrinsics_->K(), camera->R, camera->t, &P);
@@ -381,9 +385,9 @@ void Scene::mouseReleaseEvent(QMouseEvent* e) {
                                                   1-2.0*e->y()/height(), 1));
     float min_distance = 1;
     int hit_track = -1, hit_image = -1, hit_object = -1;
-    vector<Point> points = reconstruction_->AllPoints();
+    vector<EuclideanPoint> points = reconstruction_->AllPoints();
     for (int i = 0; i < points.size(); i++) {
-      const Point &point = points[i];
+      const EuclideanPoint &point = points[i];
       vec3 o = vec3(point.X.x(), point.X.y(), point.X.z())-position_;
       double t = dot(d, o) / dot(d, d);
       if (t < 0) continue;
@@ -393,9 +397,9 @@ void Scene::mouseReleaseEvent(QMouseEvent* e) {
         hit_track = point.track;
       }
     }
-    vector<Camera> cameras = reconstruction_->AllCameras();
+    vector<EuclideanCamera> cameras = reconstruction_->AllCameras();
     for (int i = 0; i < cameras.size(); i++) {
-      const Camera &camera = cameras[i];
+      const EuclideanCamera &camera = cameras[i];
       vec3 o = vec3(camera.t.x(), camera.t.y(), camera.t.z())-position_;
       double t = dot(d, o) / dot(d, d);
       if (t < 0) continue;
