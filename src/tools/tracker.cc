@@ -332,7 +332,6 @@ int main (int argc, char *argv[]) {
   for (; image_list_iterator != image_list.end(); ++image_list_iterator) {
     std::string image_path = (*image_list_iterator);
 
-// NATHAN use the stuff in blender (trklt_region_tracker.{cc,h}.
     VLOG(1) << "Tracking image '"<< image_path << "'" << std::endl;
     ByteImage imageArrayBytes;
     ReadImage (image_path.c_str(), &imageArrayBytes);
