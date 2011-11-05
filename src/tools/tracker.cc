@@ -295,7 +295,7 @@ int main (int argc, char *argv[]) {
     LOG(FATAL) << "ERROR : undefined Detector !";
   }
   detector::Detector * pDetector = detectorFactory(edetector);
- 
+
   // Set the descriptor
   descriptor::eDescriber edescriber = descriptor::DAISY_DESCRIBER;
   std::map<std::string, descriptor::eDescriber> descriptorMap;

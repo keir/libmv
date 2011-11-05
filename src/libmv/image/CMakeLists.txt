@@ -17,6 +17,8 @@ FILE(GLOB IMAGE_HDRS *.h)
 
 ADD_LIBRARY(image ${IMAGE_SRC} ${IMAGE_HDRS})
 
+ADD_LIBRARY(image_io image_io.cc image_io.h)
+TARGET_LINK_LIBRARIES(image_io image png jpeg glog)
 
 # make the name of debug libraries end in _d.
 SET_TARGET_PROPERTIES(image PROPERTIES DEBUG_POSTFIX "_d")
