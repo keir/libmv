@@ -282,7 +282,8 @@ int ReadPng(const char *filename, FloatImage *image) {
   return res;
 }
 
-// The writing and reading functions using libpng are based on http://zarb.org/~gc/html/libpng.html
+// The writing and reading functions using libpng are based on
+//     http://zarb.org/~gc/html/libpng.html
 int ReadPngStream(FILE *file, ByteImage *im) {
   png_byte header[8];
 
