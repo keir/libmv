@@ -31,8 +31,8 @@
 #include "libmv/correspondence/feature_matching.h"
 #include "libmv/correspondence/feature_matching_FLANN.h"
 #include "libmv/correspondence/tracker.h"
-#include "libmv/correspondence/robust_tracker.h" 
-#include "libmv/detector/detector_factory.h" 
+#include "libmv/correspondence/robust_tracker.h"
+#include "libmv/detector/detector_factory.h"
 #include "libmv/descriptor/descriptor_factory.h"
 #include "libmv/image/array_nd.h"
 #include "libmv/image/image.h"
@@ -225,12 +225,11 @@ bool IsArgImage(const std::string & arg) {
            arg.rfind (".pnm") != std::string::npos );
 }
 
-void ProceedReconstruction(Matches &matches, 
-                           Vec2 &image_size) {
+void ProceedReconstruction(Matches &matches, Vec2 &image_size) {
   VLOG(1) << "Euclidean Reconstruction From Video..." << std::endl;
   std::list<Reconstruction *> reconstructions;
-  EuclideanReconstructionFromVideo(matches, 
-                                   image_size(0), 
+  EuclideanReconstructionFromVideo(matches,
+                                   image_size(0),
                                    image_size(1),
                                    FLAGS_focal,
                                    &reconstructions);
@@ -250,7 +249,7 @@ void ProceedReconstruction(Matches &matches,
   iter = reconstructions.begin();
   for (; iter != reconstructions.end(); ++iter) {
     (*iter)->ClearCamerasMap();
-    (*iter)->ClearStructuresMap(); 
+    (*iter)->ClearStructuresMap();
     delete *iter;
   }
   reconstructions.clear();
@@ -296,7 +295,7 @@ int main (int argc, char *argv[]) {
     LOG(FATAL) << "ERROR : undefined Detector !";
   }
   detector::Detector * pDetector = detectorFactory(edetector);
-  
+
   // Set the descriptor
   descriptor::eDescriber edescriber = descriptor::DAISY_DESCRIBER;
   std::map<std::string, descriptor::eDescriber> descriptorMap;
@@ -323,7 +322,7 @@ int main (int argc, char *argv[]) {
     r_tracker->set_rms_threshold_inlier(FLAGS_robust_tracker_threshold);
     points_tracker = r_tracker;
   }
- 
+
   // Track the sequence of images
   libmv::tracker::FeaturesGraph all_features_graph;
   libmv::tracker::FeaturesGraph current_previous_fg[2];
@@ -360,13 +359,13 @@ int main (int argc, char *argv[]) {
                             &current_previous_fg[i_new],
                             &new_image_id,
                             is_keep_new_detected_features);
-      
     }
+
     current_previous_fg[i_prev].Clear();
     all_features_graph.Merge(current_previous_fg[i_new]);
     VLOG(1) << " New Image ID "<< new_image_id << std::endl;
     VLOG(1) << "#New Tracks "<< current_previous_fg[i_new].matches_.NumTracks()
-      << std::endl;
+            << std::endl;
 
     if (FLAGS_save_features || FLAGS_save_matches) {
       Matches::Features<PointFeature> features_set =
@@ -392,16 +391,16 @@ int main (int argc, char *argv[]) {
   // Exports all matches
   ExportMatchesToTxt(all_features_graph.matches_, FLAGS_o);
   DisplayMatches(all_features_graph.matches_);
-  
+
   // Estimates the camera trajectory and 3D structure of the scene
   if (FLAGS_pose_estimation)  {
     Vec2 image_size;
     image_size << image_sizes[0].first, image_sizes[0].second;
-    // TODO(julien) all images are supposed to have the same size 
+    // TODO(julien) all images are supposed to have the same size
     //              for this tracker
-    ProceedReconstruction(all_features_graph.matches_, image_size);     
+    ProceedReconstruction(all_features_graph.matches_, image_size);
   }
-  
+
   // Delete the tracker
   if (points_tracker) {
     delete points_tracker;
