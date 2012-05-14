@@ -19,6 +19,7 @@
 // IN THE SOFTWARE.
 
 #include <algorithm>
+#include <iterator>
 #include <vector>
 
 #include "libmv/numeric/numeric.h"
